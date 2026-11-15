@@ -1,1 +1,1 @@
-# personal_map
+# HI-DRAW(현대, 아이가 그리는 맵)
