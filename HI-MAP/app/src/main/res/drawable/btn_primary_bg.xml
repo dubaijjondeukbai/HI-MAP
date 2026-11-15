@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 가장 중요한 단추 하나: Pleos의 어두운 채움 단추(다크 테마에서는 밝은 채움). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/cta" />
+    <corners android:radius="13dp" />
+</shape>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pleos Basic button: 회색 채움에 테두리 없음. 고른 것은 회색 채움에 어두운 테두리, 누르는 동안은 한 단계 어둡게. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/fill" />
+            <stroke android:width="1.5dp" android:color="@color/ink2" />
+            <corners android:radius="13dp" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/fill2" />
+            <corners android:radius="13dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/fill" />
+            <corners android:radius="13dp" />
+        </shape>
+    </item>
+</selector>

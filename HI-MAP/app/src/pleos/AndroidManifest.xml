@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Pleos Connect SDK 권한. 공모전 기간에는 선언만으로 에뮬레이터에서 쓸 수 있다. -->
+    <!-- NaviHelper: 내비 정보 조회 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <!-- NaviHelper: 목적지 설정(requestRoute), 경로 옵션 변경 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <!-- FusedLocation: 차량 위치 -->
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
+    <!-- TextToSpeech: 음성 예고 -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+</manifest>

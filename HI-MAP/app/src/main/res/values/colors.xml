@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 라이트 테마. Pleos Connect UI Design Guide의 회색 단계(basic_00~basic_900)와 텍스트 버튼의 파랑(#0064FF)을 쓴다.
+     글자와 바탕의 대비는 4.5:1 이상으로 맞췄다. -->
+<resources>
+    <color name="bg">#F7F8FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="ink">#131417</color>
+    <color name="ink2">#44464E</color>
+    <color name="line">#E0E1E6</color>
+    <color name="fill">#EDEEF2</color>
+    <color name="fill2">#E0E1E6</color>
+    <color name="accent">#0064FF</color>
+    <color name="accent_ink">#FFFFFF</color>
+    <color name="accent_soft">#E5EFFF</color>
+    <color name="cta">#44464E</color>
+    <color name="cta_ink">#FFFFFF</color>
+    <color name="lock">#7A4E00</color>
+    <color name="lock_soft">#FFF0CF</color>
+    <color name="paper">#FFFFFF</color>
+    <color name="launcher_bg">#E5EFFF</color>
+</resources>

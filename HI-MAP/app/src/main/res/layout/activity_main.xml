@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 화면 구성: 위쪽 줄(앱 이름·목적지·상태·시연 단추) / 가운데(그림 지도 + 오른쪽 패널) / 아래(여정 띠) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/surface"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_name"
+            android:textColor="@color/ink"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/destBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:orientation="horizontal" />
+
+        <TextView
+            android:id="@+id/modeChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:background="@drawable/chip_bg"
+            android:paddingStart="12dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="6dp"
+            android:text="@string/mode_parked"
+            android:textColor="@color/accent"
+            android:textSize="14sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/btnDemo"
+            style="@style/SmallButton"
+            android:layout_marginEnd="6dp"
+            android:text="@string/demo_on" />
+
+        <Button
+            android:id="@+id/btnBlock"
+            style="@style/SmallButton"
+            android:layout_marginEnd="6dp"
+            android:text="@string/demo_block" />
+
+        <Button
+            android:id="@+id/btnGo"
+            style="@style/SmallButton.Primary"
+            android:text="@string/demo_go" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
+
+            <org.maplibre.android.maps.MapView
+                android:id="@+id/mapView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:id="@+id/mapNote"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
+                android:layout_margin="12dp"
+                android:background="@drawable/caption_bg"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:text="@string/map_note_parked"
+                android:textColor="@color/ink2"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:layout_margin="12dp"
+                android:background="@drawable/caption_bg"
+                android:paddingStart="16dp"
+                android:paddingTop="12dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="12dp"
+                android:textColor="@color/ink"
+                android:textSize="20sp"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="360dp"
+            android:layout_height="match_parent"
+            android:background="@color/surface">
+
+            <!-- 정차 중: 그리기 · 붙이기 · 미리 보기 -->
+            <ScrollView
+                android:id="@+id/editPanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/tabDraw"
+                            style="@style/SmallButton"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:text="@string/tab_draw" />
+
+                        <Button
+                            android:id="@+id/tabAssign"
+                            style="@style/SmallButton"
+                            android:layout_width="0dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="@string/tab_assign" />
+
+                        <Button
+                            android:id="@+id/tabPreview"
+                            style="@style/SmallButton"
+                            android:layout_width="0dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="@string/tab_preview" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/paneDraw"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical">
+
+                        <com.mydrawingmap.app.draw.DrawingView
+                            android:id="@+id/drawingView"
+                            android:layout_width="240dp"
+                            android:layout_height="240dp"
+                            android:layout_gravity="center_horizontal"
+                            android:background="@drawable/paper_bg" />
+
+                        <LinearLayout
+                            android:id="@+id/crayonRow"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:gravity="center"
+                            android:orientation="horizontal" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="horizontal">
+
+                            <Button
+                                android:id="@+id/penThin"
+                                style="@style/SmallButton"
+                                android:text="@string/pen_thin" />
+
+                            <Button
+                                android:id="@+id/penThick"
+                                style="@style/SmallButton"
+                                android:layout_marginStart="6dp"
+                                android:text="@string/pen_thick" />
+
+                            <Button
+                                android:id="@+id/padUndo"
+                                style="@style/SmallButton"
+                                android:layout_marginStart="6dp"
+                                android:text="@string/pad_undo" />
+
+                            <Button
+                                android:id="@+id/padClear"
+                                style="@style/SmallButton"
+                                android:layout_marginStart="6dp"
+                                android:text="@string/pad_clear" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:orientation="horizontal">
+
+                            <EditText
+                                android:id="@+id/drawName"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/field_bg"
+                                android:hint="@string/draw_name_hint"
+                                android:imeOptions="actionDone"
+                                android:importantForAutofill="no"
+                                android:inputType="text"
+                                android:maxLength="12"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
+                                android:textColor="@color/ink"
+                                android:textColorHint="@color/ink2"
+                                android:textSize="15sp" />
+
+                            <Button
+                                android:id="@+id/padSave"
+                                style="@style/SmallButton.Primary"
+                                android:layout_marginStart="6dp"
+                                android:text="@string/pad_save" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/drawHint"
+                            style="@style/Hint"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/draw_hint" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/paneAssign"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            style="@style/PaneLabel"
+                            android:text="@string/my_drawings" />
+
+                        <HorizontalScrollView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:scrollbars="none">
+
+                            <LinearLayout
+                                android:id="@+id/drawer"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal" />
+                        </HorizontalScrollView>
+
+                        <Button
+                            android:id="@+id/drawerDelete"
+                            style="@style/SmallButton"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/delete_drawing"
+                            android:visibility="gone" />
+
+                        <TextView
+                            style="@style/Hint"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/assign_hint" />
+
+                        <LinearLayout
+                            android:id="@+id/slotList"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/panePreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/previewSum"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/ink"
+                            android:textSize="20sp" />
+
+                        <LinearLayout
+                            android:id="@+id/previewList"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- 주행 중: 다음 그림만 보여 준다 -->
+            <LinearLayout
+                android:id="@+id/drivePanel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/PaneLabel"
+                    android:text="@string/next_drawing" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/nextImage"
+                        android:layout_width="112dp"
+                        android:layout_height="112dp"
+                        android:importantForAccessibility="no" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/nextName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/ink"
+                            android:textSize="24sp" />
+
+                        <TextView
+                            android:id="@+id/nextDistance"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textColor="@color/ink2"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/driveSum"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textColor="@color/ink"
+                    android:textSize="20sp" />
+
+                <Button
+                    android:id="@+id/btnAsk"
+                    style="@style/SmallButton"
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/ask_where" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:background="@drawable/lock_bg"
+                    android:lineSpacingMultiplier="1.2"
+                    android:padding="12dp"
+                    android:text="@string/locked_notice"
+                    android:textColor="@color/lock"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <com.mydrawingmap.app.ui.JourneyStripView
+        android:id="@+id/strip"
+        android:layout_width="match_parent"
+        android:layout_height="92dp"
+        android:background="@color/surface"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp" />
+</LinearLayout>

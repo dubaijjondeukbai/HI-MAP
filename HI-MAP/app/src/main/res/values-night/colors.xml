@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 다크 테마(차량 기본). 회색 단계를 거꾸로 읽는다. 강조색은 어두운 바탕에서 글자로도 읽히게 밝은 파랑을 쓴다. -->
+<resources>
+    <color name="bg">#131417</color>
+    <color name="surface">#1D1E21</color>
+    <color name="ink">#FFFFFF</color>
+    <color name="ink2">#C7C9CE</color>
+    <color name="line">#313236</color>
+    <color name="fill">#313236</color>
+    <color name="fill2">#44464E</color>
+    <color name="accent">#4A90FF</color>
+    <color name="accent_ink">#0A1020</color>
+    <color name="accent_soft">#16233D</color>
+    <color name="cta">#E0E1E6</color>
+    <color name="cta_ink">#131417</color>
+    <color name="lock">#F2C277</color>
+    <color name="lock_soft">#33290F</color>
+    <color name="paper">#EDEEF2</color>
+    <color name="launcher_bg">#E5EFFF</color>
+</resources>

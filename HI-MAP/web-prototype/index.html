@@ -1,0 +1,2284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="HI-MAP: 아이가 그린 그림이 가는 길의 지도가 되는 차량용 앱 시연">
+<style>
+:root { color-scheme: light; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>HI-MAP 시연</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: two screens side by side. On the left the driver's display, sketched and left exactly as the car shows it (gear,
+   speed, the next turn of the car's own navigation). On the right the child's own tablet or phone, which is where this app
+   lives: the child draws there and follows the trip there. The car app only passes the route and the position across, so
+   nothing new ever appears in front of the driver. A quiet masthead above, one slim demo remote below, the SDK log folded away.
+   Look: the Pleos Connect UI Design Guide, kept on the child's screen too so the two screens read as one product. It opens
+   in the light theme; the dark theme is one press away. The greys are
+   the guide's grey scale (basic_00 to basic_900: #FFFFFF #F7F8FA #EDEEF2 #E0E1E6 #C7C9CE #AAABAE #686A73 #44464E #313236
+   #1D1E21 #131417, read the other way round in the dark theme). Buttons follow the guide's Basic button: a plain grey fill
+   with a dark label, and a dark fill with a white label for the one action that counts. A chosen segment is the Toggle
+   button's white pill with a shadow. A hint is the Toast: dark, white text, bottom centre. A chosen row is a grey fill with
+   a dark edge, like a focused field. The one blue (#0064FF, the blue of the guide's Text button) is kept for the route, for
+   what is live and for check marks. Sizes are measured from the guide's own pictures: a Medium button is 80dp tall with 24dp
+   corners, a toast has 16dp corners and 40dp/24dp padding, a popup about 44dp corners. This page draws the 1700dp window at
+   974px, so those come out as 46px, 14px, 9px, 23px/14px and 24px. The typeface is Asta Sans, the system typeface; icons are
+   line icons with round ends at the guide's stroke (3.6 on a 48 grid). Every text pair is checked for 4.5:1.
+   Inside the display nothing a finger must hit is under 40px and no text is under 13px except two 12px tags; every line of
+   text is at least 18px tall. Lines break between sentences, never inside a word. The app lays itself out from the width of
+   its own screen: wide on a tablet, narrow on a phone. */
+:root {
+  --bg: #F7F8FA;
+  --surface: #FFFFFF;
+  --ink: #131417;
+  --ink-2: #44464E;
+  --line: #E0E1E6;
+  --fill: #EDEEF2;
+  --accent: #0064FF;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E5EFFF;
+  --cta: #44464E; --cta-ink: #FFFFFF;
+  --bezel: #000000;
+  --shadow: rgba(0, 0, 0, .25);
+  --brand: #0064FF; --brand-ink: #FFFFFF; --brand-live: #B8D4FF;
+  --font-ui: "Asta Sans", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans KR", "Noto Sans CJK KR", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131417; --surface: #1D1E21; --ink: #FFFFFF; --ink-2: #C7C9CE; --line: #313236; --fill: #313236;
+    --accent: #5C9BFF; --accent-ink: #0A1020; --accent-soft: #16233D; --cta: #E0E1E6; --cta-ink: #131417; --bezel: #000000; --shadow: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131417; --surface: #1D1E21; --ink: #FFFFFF; --ink-2: #C7C9CE; --line: #313236; --fill: #313236;
+  --accent: #5C9BFF; --accent-ink: #0A1020; --accent-soft: #16233D; --cta: #E0E1E6; --cta-ink: #131417; --bezel: #000000; --shadow: rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+
+/* Both screens have two themes. The light theme is the base block and what they open in; the dark theme (data-mode="night")
+   comes up with the moon button. --sys* is the driver's display, --bar* the journey strip and the segments,
+   --say-* the spoken sentence, --toast* the hint, --hero* the next-drawing card, --mk-* the app's mark, --m-* the map.
+   --a-fill is a plain button or a chosen row, --a-fill2 the same pressed, --a-cta the one dark button, --a-link the blue of
+   lines and check marks (lighter in the dark theme so it keeps its contrast), --a-accent the blue that carries white. */
+.unit {
+  --sys: #E0E1E6; --sys-ink: #131417; --sys-ink2: #44464E; --sys-card: #F7F8FA; --sys-line: #C7C9CE; --sys-accent: #0064FF; --sys-accent-ink: #FFFFFF;
+  --bar: #FFFFFF; --bar-ink: #131417; --bar-ink2: #44464E; --bar-fill: #EDEEF2; --bar-line: #E0E1E6; --bar-on: #FFFFFF; --bar-on-ink: #131417; --bar-active: #0064FF;
+  --seg-shadow: 0 3px 14px rgba(0, 0, 0, .10);
+  --say-bg: #FFFFFF; --say-ink: #131417; --say-ring: #E0E1E6; --hero: #F7F8FA; --hero-ink: #131417; --hero-ink2: #44464E; --hero-line: #EDEEF2;
+  --toast: #38393B; --toast-ink: #FFFFFF;
+  --mk-bg: #0064FF; --mk-fg: #FFFFFF;
+  --a-bg: #F7F8FA; --a-surface: #FFFFFF; --a-ink: #131417; --a-ink2: #44464E; --a-ink3: #686A73; --a-line: #E0E1E6; --a-fill: #EDEEF2; --a-fill2: #E0E1E6;
+  --a-accent: #0064FF; --a-accent-ink: #FFFFFF; --a-link: #0064FF; --a-cta: #44464E; --a-cta-ink: #FFFFFF;
+  --a-warn: #7A4E00; --a-warn-soft: #FFF0CF; --a-danger: #B32A16; --dot-go: #1E9E63; --dot-hold: #D9860B; --hair: rgba(0, 0, 0, .16);
+  --paper: #FFFFFF; --paper-edge: #E0E1E6; --paper-ink: #686A73; --paper-fill: #EDEEF2; --a-shadow: rgba(0, 0, 0, .20); --a-shadow-soft: rgba(0, 0, 0, .10);
+  --m-land: #EDEEF2; --m-block: #F7F8FA; --m-park: #CFE6C8; --m-park-dot: #B6D4AE; --m-water: #B5D5EE; --m-water-line: #CDE3F5;
+  --m-bldg: #E0E1E6; --m-bldg2: #D2D4DA; --m-road: #FFFFFF; --m-road-edge: #C7C9CE; --m-road-mark: #E0E1E6; --m-bridge: #9A9CA3;
+  --m-route: #0064FF; --m-route-edge: #FFFFFF; --m-passed: #99C1FF; --m-label: #131417; --m-label-bg: #FFFFFF; --m-text: #5B5D66;
+  --m-badge: #FFFFFF; --m-badge-ink: #44464E; --m-halo: rgba(0, 100, 255, .20); --m-warn: #F62F24;
+}
+.unit[data-mode="night"] {
+  --sys: #08090A; --sys-ink: #FFFFFF; --sys-ink2: #AAABAE; --sys-card: #1D1E21; --sys-line: #313236; --sys-accent: #0064FF; --sys-accent-ink: #FFFFFF;
+  --bar: #1D1E21; --bar-ink: #FFFFFF; --bar-ink2: #C7C9CE; --bar-fill: #313236; --bar-line: #313236; --bar-on: #686A73; --bar-on-ink: #FFFFFF; --bar-active: #4A90FF;
+  --seg-shadow: none;
+  --say-bg: #313236; --say-ink: #FFFFFF; --say-ring: #44464E; --hero: #131417; --hero-ink: #FFFFFF; --hero-ink2: #C7C9CE; --hero-line: #313236;
+  --toast: #44464E; --toast-ink: #FFFFFF;
+  --mk-bg: #0064FF; --mk-fg: #FFFFFF;
+  --a-bg: #131417; --a-surface: #1D1E21; --a-ink: #FFFFFF; --a-ink2: #C7C9CE; --a-ink3: #AAABAE; --a-line: #313236; --a-fill: #313236; --a-fill2: #44464E;
+  --a-accent: #0064FF; --a-accent-ink: #FFFFFF; --a-link: #4A90FF; --a-cta: #E0E1E6; --a-cta-ink: #131417;
+  --a-warn: #F2C277; --a-warn-soft: #33290F; --a-danger: #FFA493; --dot-go: #35C27E; --dot-hold: #F2A93B; --hair: rgba(255, 255, 255, .24);
+  --paper: #EDEEF2; --paper-edge: #C7C9CE; --paper-ink: #44464E; --paper-fill: #E0E1E6; --a-shadow: rgba(0, 0, 0, .55); --a-shadow-soft: rgba(0, 0, 0, .35);
+  --m-land: #15171A; --m-block: #1A1C20; --m-park: #16261C; --m-park-dot: #1E3326; --m-water: #142838; --m-water-line: #1C3549;
+  --m-bldg: #25282D; --m-bldg2: #1F2226; --m-road: #33373E; --m-road-edge: #0D0E10; --m-road-mark: #474C55; --m-bridge: #5A606A;
+  --m-route: #4A90FF; --m-route-edge: #0A1020; --m-passed: #34476B; --m-label: #FFFFFF; --m-label-bg: #313236; --m-text: #AEB5BF;
+  --m-badge: #313236; --m-badge-ink: #E0E1E6; --m-halo: rgba(74, 144, 255, .28); --m-warn: #FF7A62;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; letter-spacing: -.01em;
+  word-break: keep-all; overflow-wrap: anywhere; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+button, input { font: inherit; letter-spacing: inherit; color: inherit; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; }
+h1, h2, h3, p, ol, ul { margin: 0; }
+svg { display: block; flex: none; }
+.ln { display: block; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.unit :focus-visible { outline-color: var(--a-link); }
+.cluster :focus-visible, .appbar :focus-visible, .strip:focus-visible, .strip :focus-visible { outline-color: var(--bar-active); }
+.strip:focus-visible { outline-offset: -3px; }
+/* The app's own mark: a road drawn by hand that ends in a dot. */
+.mark .mk-bg { fill: var(--brand); }
+.mark .mk-line { stroke: var(--brand-ink); }
+.mark .mk-start { fill: var(--brand-ink); }
+.mark .mk-dot { fill: var(--brand-live); }
+
+.page {
+  max-width: 1240px; margin: 0 auto; display: grid; gap: 16px;
+  padding-block: 24px 44px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- masthead */
+.masthead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 32px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand .mark { width: 44px; height: 44px; border-radius: 12px; }
+.eyebrow { font-size: 12px; font-weight: 700; color: var(--ink-2); line-height: 1.3; }
+.brand h1 { font-size: clamp(26px, 4vw, 30px); font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
+.intro { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 20px; flex: 1 1 420px; min-width: 0; }
+.lead { max-width: 37em; color: var(--ink-2); font-size: 14px; line-height: 1.6; min-width: 0; flex: 0 1 auto; text-wrap: pretty; }
+.play { height: 46px; padding: 0 20px 0 15px; border-radius: 14px; border: 0; background: var(--cta); color: var(--cta-ink); font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex: none; }
+
+/* ---------- the two screens: the driver's display, left as it is, and the child's own device */
+.unit {
+  --map-h: clamp(360px, min(40vw, calc(100vh - 354px)), 520px);
+  position: relative; display: grid; grid-template-columns: 234px minmax(0, 1fr); gap: 14px; align-items: stretch;
+}
+.dev { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; min-width: 0; }
+.dev-label { display: flex; align-items: baseline; gap: 8px; padding: 0 8px; font-size: 13px; font-weight: 700; line-height: 1.5; color: var(--ink); white-space: nowrap; min-width: 0; }
+.dev-label span { font-weight: 400; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
+.bezel { display: grid; min-width: 0; background: var(--bezel); border-radius: 26px; padding: 9px; box-shadow: 0 30px 50px -30px var(--shadow), 0 2px 6px var(--shadow); }
+.car-screen { display: grid; min-width: 0; border-radius: 18px; overflow: hidden; background: var(--sys); color: var(--sys-ink); }
+.screen {
+  border-radius: 18px; overflow: hidden; background: var(--a-bg); color: var(--a-ink); min-width: 0;
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+}
+.statusbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 16px 2px; font-size: 12px; font-weight: 500; color: var(--a-ink2); font-variant-numeric: tabular-nums;
+}
+.statusbar b { color: var(--a-ink); font-weight: 700; }
+.sb-r { display: inline-flex; align-items: center; gap: 12px; }
+.sb-r span { display: inline-flex; align-items: center; gap: 5px; }
+.sb-link i { width: 7px; height: 7px; border-radius: 50%; background: var(--dot-go); }
+
+.cluster { padding: 12px 12px 14px 14px; display: grid; grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto; align-content: start; gap: 12px; min-width: 0; }
+.tag { font-size: 12px; font-weight: 700; color: var(--sys-ink2); }
+.gears { display: flex; gap: 2px; background: var(--sys-card); border-radius: 12px; padding: 4px; }
+.gears span { flex: 1; text-align: center; padding: 4px 0; border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--sys-ink2); transition: background .2s, color .2s; }
+.gears span[data-on="true"] { background: var(--sys-ink); color: var(--sys); }
+.speed { display: flex; align-items: baseline; gap: 6px; padding-left: 2px; }
+.speed b { font-size: 56px; line-height: 1; font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.speed span { font-size: 13px; color: var(--sys-ink2); }
+.turn { background: var(--sys-card); border-radius: 16px; padding: 11px; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 11px; align-items: center; }
+.turn-arrow { width: 40px; height: 40px; border-radius: 12px; background: var(--sys-accent); color: var(--sys-accent-ink); display: grid; place-items: center; }
+.turn strong { display: block; font-size: 16px; font-weight: 700; line-height: 1.3; letter-spacing: -.02em; }
+.turn small { display: block; font-size: 12px; color: var(--sys-ink2); line-height: 1.4; font-variant-numeric: tabular-nums; }
+.trip { margin-top: -4px; padding-left: 2px; font-size: 12px; line-height: 1.45; color: var(--sys-ink2); font-variant-numeric: tabular-nums; text-wrap: balance; }
+/* The car's own navigation map, sketched: the same route, drawn the car's way. It never changes because of this app. */
+.navmap { min-height: 0; border-radius: 14px; overflow: hidden; background: var(--m-land); }
+.navmap svg { width: 100%; height: 100%; }
+.cluster-note { align-self: end; font-size: 12px; color: var(--sys-ink2); line-height: 1.5; }
+
+/* ---------- the app on the child's device */
+/* The same app on a phone: the device narrows and the app lays itself out for one column. */
+.unit[data-win="half"] .dev.kid { width: min(100%, 505px); }
+.app {
+  container: app / inline-size;
+  background: var(--a-bg); color: var(--a-ink); overflow: hidden; min-width: 0;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.appbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px 10px 14px; background: var(--a-bg); color: var(--bar-ink); }
+.appname { display: inline-flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 700; letter-spacing: -.025em; line-height: 1; margin-right: auto; }
+.appname .mark { width: 28px; height: 28px; border-radius: 8px; }
+.appname .mark .mk-bg { fill: var(--mk-bg); }
+.appname .mark .mk-line { stroke: var(--mk-fg); }
+.appname .mark .mk-start { fill: var(--mk-fg); }
+.dest { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: var(--bar-fill); border-radius: 15px; }
+.dest button {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; border-radius: 12px;
+  padding: 0 14px; min-height: 40px; font-size: 14px; font-weight: 500; color: var(--bar-ink2);
+  transition: background .18s, color .18s, box-shadow .18s, opacity .18s;
+}
+.dest button[aria-pressed="true"] { background: var(--bar-on); color: var(--bar-on-ink); box-shadow: var(--seg-shadow); }
+.dest button:disabled { opacity: .5; }
+/* The state of the car is plain text with one small light, not a badge. */
+.mode { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 500; color: var(--bar-ink); white-space: nowrap; }
+.mode i { width: 8px; height: 8px; border-radius: 50%; background: var(--dot-go); transition: background .2s; }
+.mode[data-lock="true"] i { background: var(--dot-hold); }
+
+.appbody { display: grid; grid-template-columns: minmax(0, 1fr) 340px; height: var(--map-h); --stage-h: var(--map-h); }
+/* The stage shows the map, or, while drawing, the sheet of paper. */
+.stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--m-land); }
+.mapwrap { position: absolute; inset: 0; }
+.mapwrap canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; }
+.say {
+  position: absolute; left: 50%; top: 14px; width: max-content; max-width: calc(100% - 28px);
+  display: flex; align-items: center; gap: 12px; padding: 8px 20px 8px 8px; border-radius: 20px; z-index: 2;
+  background: var(--say-bg); color: var(--say-ink); box-shadow: 0 8px 32px rgba(0, 0, 0, .16), 0 2px 2px rgba(0, 0, 0, .08), 0 0 0 1px var(--say-ring);
+  font-size: 20px; font-weight: 700; line-height: 1.5; letter-spacing: -.02em;
+  opacity: 0; transform: translate(-50%, -8px); transition: opacity .22s ease, transform .22s ease; pointer-events: none;
+}
+.say[data-on="true"] { opacity: 1; transform: translate(-50%, 0); }
+.say .ln { text-wrap: balance; }
+/* A hint is the guide's Toast: bottom centre, 24dp from the edges, 40dp/24dp padding, 16dp corners, at most 792dp wide. */
+.say[data-kind="hint"] { top: auto; bottom: 14px; max-width: min(calc(100% - 28px), 454px); font-size: 15px; font-weight: 500; padding: 12px 23px; border-radius: 10px; background: var(--toast); color: var(--toast-ink); box-shadow: 0 8px 32px rgba(0, 0, 0, .16), 0 2px 2px rgba(0, 0, 0, .08); transform: translate(-50%, 8px); }
+.say[data-kind="hint"][data-on="true"] { transform: translate(-50%, 0); }
+.say[data-kind="hint"] .say-ico { display: none; }
+.say-ico { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: var(--a-fill); flex: none; }
+.say-ico svg { width: 100%; height: 100%; }
+.attrib { position: absolute; left: 10px; bottom: 8px; font-size: 12px; line-height: 1.5; color: var(--m-text); pointer-events: none; }
+
+.panel { container: panel / size; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--a-surface); border-left: 1px solid var(--a-line); }
+.pscroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 12px 12px; scrollbar-width: thin; }
+.tabs { flex: none; margin: 12px 12px 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px; background: var(--a-fill); border-radius: 15px; }
+.tab {
+  border: 0; background: transparent; border-radius: 12px; min-height: 40px; padding: 0 2px;
+  font-size: 14px; font-weight: 500; color: var(--a-ink2); white-space: nowrap;
+  transition: background .18s, color .18s, box-shadow .18s;
+}
+.tab[aria-selected="true"] { background: var(--bar-on); color: var(--bar-on-ink); font-weight: 700; box-shadow: var(--seg-shadow); }
+.pane { display: grid; gap: 12px; align-content: start; }
+.sec-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; font-size: 13px; font-weight: 700; color: var(--a-ink); }
+.sec-h span { font-weight: 400; color: var(--a-ink3); }
+.sec-h output { color: var(--a-ink); font-variant-numeric: tabular-nums; }
+.hint { font-size: 13px; color: var(--a-ink3); line-height: 1.55; }
+
+/* drawing: a full sheet of paper on the stage; pens, colours and size in the panel, all big enough for a finger */
+.drawwrap { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: var(--a-bg); }
+.padbox { position: relative; width: min(100%, calc(var(--stage-h) - 32px)); }
+.pad { display: block; width: 100%; aspect-ratio: 1; border-radius: 20px; background: var(--paper); box-shadow: 0 0 0 1px var(--paper-edge), 0 14px 24px -18px var(--a-shadow); touch-action: none; cursor: crosshair; }
+.pad[data-pick="true"] { cursor: cell; }
+.pad-hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--paper-ink); font-size: 15px; pointer-events: none; transition: opacity .2s; }
+.pad-hint[data-off="true"] { opacity: 0; }
+.padtools { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; }
+.icobtn { width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 0; background: var(--paper-fill); display: grid; place-items: center; color: var(--paper-ink); transition: background .16s; }
+.icobtn:hover { background: var(--paper-edge); }
+.loupe { position: absolute; left: 0; top: 0; width: 48px; height: 48px; margin: -66px 0 0 -24px; border-radius: 50%; border: 3px solid var(--paper); box-shadow: 0 0 0 1px var(--paper-ink), 0 8px 14px -6px var(--a-shadow); pointer-events: none; }
+.loupe[data-empty="true"] { border-style: dashed; border-color: var(--paper-ink); box-shadow: none; }
+.pens { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 3px; background: var(--a-fill); border-radius: 16px; }
+.pen { display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 58px; border: 0; background: transparent; border-radius: 13px; padding: 5px 0 4px; font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--a-ink2); transition: background .16s, color .16s, box-shadow .16s; }
+.pen svg { width: 27px; height: 27px; }
+.pen[aria-pressed="true"] { background: var(--bar-on); color: var(--bar-on-ink); font-weight: 700; box-shadow: var(--seg-shadow); }
+.colors { position: relative; display: grid; gap: 8px; }
+.textbtn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 13px 0 11px; border-radius: 12px; border: 0; background: var(--a-fill); color: var(--a-ink); font-size: 13px; font-weight: 500; white-space: nowrap; transition: background .16s, color .16s, border-color .16s; }
+.textbtn:hover { background: var(--a-fill2); }
+.textbtn[aria-pressed="true"] { background: var(--a-cta); color: var(--a-cta-ink); }
+.swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px 0; justify-items: center; }
+.sw { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px var(--hair); }
+.sw[aria-pressed="true"], .mix[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--a-surface), 0 0 0 5px var(--a-ink); }
+.mix { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: conic-gradient(#E5484D, #F5A524, #F7D154, #46A758, #3E8FE0, #8E5BD0, #E5484D); display: grid; place-items: center; }
+.mix i { width: 24px; height: 24px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--a-surface); }
+.sqbtn { width: 40px; height: 40px; padding: 0; border-radius: 12px; border: 0; background: var(--a-fill); color: var(--a-ink2); display: grid; place-items: center; flex: none; transition: background .16s, color .16s, border-color .16s; }
+.sqbtn:hover { background: var(--a-fill2); }
+.rgb { position: absolute; left: 0; right: 0; top: 48px; z-index: 3; display: grid; gap: 2px; padding: 10px 14px 14px; border-radius: 24px; background: var(--a-surface); box-shadow: 0 0 0 1px var(--a-line), 0 20px 40px rgba(0, 0, 0, .24), 0 2px 4px rgba(0, 0, 0, .20); }
+.rgb-head { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rgb-prev { width: 26px; height: 26px; border-radius: 8px; background: var(--c); box-shadow: inset 0 0 0 1px var(--hair); }
+.rgb-head .sqbtn { margin-left: auto; background: transparent; }
+.rgb-head .sqbtn:hover { background: var(--a-fill); }
+.ch { display: grid; grid-template-columns: 14px minmax(0, 1fr) 54px; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; font-weight: 700; color: var(--a-ink2); }
+.ch input[type="number"] { width: 54px; height: 40px; padding: 0 2px; border: 1px solid var(--a-line); border-radius: 10px; background: var(--a-surface); color: var(--a-ink); font-size: 14px; font-weight: 500; text-align: center; font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield; }
+.ch input[type="number"]::-webkit-outer-spin-button, .ch input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.range { -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; height: 40px; margin: 0; padding: 0; background: transparent; cursor: pointer; }
+.range::-webkit-slider-runnable-track { height: 8px; border-radius: 8px; background: var(--track, var(--a-fill)); box-shadow: inset 0 0 0 1px var(--hair); }
+.range::-moz-range-track { height: 8px; border-radius: 8px; background: var(--track, var(--a-fill)); box-shadow: inset 0 0 0 1px var(--hair); }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -9px; border: 0; border-radius: 50%; background: var(--a-surface); box-shadow: 0 0 0 1.5px var(--a-ink2), 0 2px 5px var(--a-shadow-soft); }
+.range::-moz-range-thumb { width: 26px; height: 26px; border: 0; border-radius: 50%; background: var(--a-surface); box-shadow: 0 0 0 1.5px var(--a-ink2), 0 2px 5px var(--a-shadow-soft); }
+.sizerow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px 40px; align-items: center; gap: 6px; }
+.sizedot { width: 40px; height: 40px; display: grid; place-items: center; }
+.sizedot i { display: block; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px var(--hair); }
+.saverow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.field { width: 100%; min-width: 0; height: 44px; border: 1px solid var(--a-line); border-radius: 13px; padding: 0 12px; background: var(--a-surface); font-size: 15px; color: var(--a-ink); transition: background .16s, border-color .16s; }
+.field:focus, .ch input[type="number"]:focus { border-color: var(--a-ink2); background: var(--a-fill); }
+.field::placeholder { color: var(--a-ink3); }
+.btn-p { height: 44px; padding: 0 20px; border-radius: 13px; border: 0; background: var(--a-cta); color: var(--a-cta-ink); font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+.btn-s { height: 44px; padding: 0 15px; border-radius: 13px; border: 0; background: var(--a-fill); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--a-ink); }
+.btn-s:hover { background: var(--a-fill2); }
+.btn-s.danger { color: var(--a-danger); }
+.confirm { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; font-size: 13px; color: var(--a-ink2); }
+
+/* stickers */
+.th { display: block; width: 40px; height: 40px; border-radius: 12px; background: var(--paper); box-shadow: 0 0 0 1px var(--paper-edge), 0 3px 6px -3px var(--a-shadow); }
+.th.p { border-radius: 50%; background: var(--a-fill2); box-shadow: none; }
+.th.bg { box-shadow: 0 0 0 1px var(--a-line); }
+.shelf { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.stk { position: relative; display: grid; justify-items: center; gap: 5px; padding: 7px 2px 6px; border-radius: 16px; border: 1px solid transparent; background: transparent; font-size: 13px; line-height: 1.4; color: var(--a-ink2); min-width: 0; transition: background .16s, border-color .16s; }
+.stk:hover { background: var(--a-fill); }
+.stk img { width: 52px; height: 52px; border-radius: 12px; background: var(--paper); box-shadow: 0 0 0 1px var(--paper-edge), 0 4px 8px -4px var(--a-shadow); }
+.stk span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stk em { position: absolute; top: 3px; right: 3px; font-style: normal; font-size: 12px; line-height: 1.5; padding: 0 5px; border-radius: 6px; background: var(--a-fill); color: var(--a-ink3); }
+.stk[aria-pressed="true"] { background: var(--a-fill); border-color: var(--a-ink2); color: var(--a-ink); font-weight: 500; }
+.stk[aria-pressed="true"] em { background: var(--a-accent); color: var(--a-accent-ink); }
+.slots { display: grid; gap: 2px; }
+.slot { display: grid; grid-template-columns: 40px minmax(0, 1fr) 20px; align-items: center; gap: 10px; width: 100%; min-height: 54px; text-align: left; padding: 6px 8px 6px 6px; border: 1px solid transparent; border-radius: 16px; background: transparent; color: var(--a-ink); transition: background .16s, border-color .16s; }
+.slot:hover { background: var(--a-fill); }
+.slot[aria-pressed="true"] { background: var(--a-fill); border-color: var(--a-ink2); }
+.slot b { display: block; font-weight: 500; font-size: 15px; line-height: 1.4; }
+.slot small { display: block; color: var(--a-ink3); font-size: 13px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slot .trail { color: var(--a-ink3); }
+.slot[aria-pressed="true"] .trail { color: var(--a-link); }
+
+/* voices */
+.vlist { display: grid; gap: 6px; }
+.vcard { display: grid; grid-template-columns: 46px minmax(0, 1fr) 20px; align-items: center; gap: 12px; width: 100%; min-height: 64px; text-align: left; padding: 8px 10px 8px 8px; border: 1px solid var(--a-line); border-radius: 16px; background: var(--a-surface); color: var(--a-ink); transition: background .16s, border-color .16s; }
+.vcard:hover { background: var(--a-fill); }
+.vcard[aria-pressed="true"] { background: var(--a-fill); border-color: var(--a-ink2); }
+.vface { width: 46px; height: 46px; border-radius: 50%; overflow: hidden; background: var(--a-fill2); }
+.vface svg { width: 100%; height: 100%; }
+.vcard b { display: block; font-size: 15px; font-weight: 700; line-height: 1.4; }
+.vcard b span { margin-left: 6px; font-size: 13px; font-weight: 400; color: var(--a-ink3); }
+.vcard small { display: block; font-size: 13px; line-height: 1.4; color: var(--a-ink3); }
+.vcard .trail { color: var(--a-link); }
+
+/* preview */
+.sum { font-size: 17px; font-weight: 700; line-height: 1.5; letter-spacing: -.02em; padding: 12px 14px; border-radius: 16px; background: var(--a-fill); color: var(--a-ink); text-wrap: balance; }
+.plist { list-style: none; padding: 0; display: grid; }
+.plist li { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; padding: 6px; border-radius: 16px; font-size: 15px; transition: background .18s; }
+.plist li + li::before { content: ""; position: absolute; left: 25px; top: -7px; width: 2px; height: 14px; border-radius: 1px; background: var(--a-line); }
+.plist li[data-focus="true"] { background: var(--a-fill); }
+
+/* driving */
+.drive { display: grid; gap: 12px; align-content: start; }
+.next { display: grid; justify-items: center; gap: 8px; padding: 14px 12px; border-radius: 20px; background: var(--hero); color: var(--hero-ink); box-shadow: inset 0 0 0 2px var(--hero-line); text-align: center; }
+.next .lbl { font-size: 13px; font-weight: 700; color: var(--hero-ink2); }
+.next .th { width: clamp(84px, calc(var(--map-h) - 350px), 128px); height: auto; aspect-ratio: 1; border-radius: 20px; transform: rotate(-3deg); box-shadow: 0 0 0 1px var(--paper-edge), 0 16px 24px -16px var(--a-shadow); }
+.next .th.p { border-radius: 50%; transform: none; background: var(--a-surface); box-shadow: none; }
+.next b { font-size: 24px; font-weight: 700; line-height: 1.25; letter-spacing: -.025em; }
+.dist { font-size: 15px; font-weight: 500; line-height: 1.3; color: var(--hero-ink2); font-variant-numeric: tabular-nums; }
+.ask { height: 48px; border-radius: 14px; border: 0; background: var(--a-fill); color: var(--a-ink); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 500; }
+.ask:hover { background: var(--a-fill2); }
+.lockbox { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 10px 12px; border-radius: 16px; background: var(--a-warn-soft); color: var(--a-warn); line-height: 1.55; }
+.lockbox svg { margin-top: 1px; }
+/* On a short panel the locked notice goes first: the state text above the map already says it. */
+@container panel (max-height: 424px) { .drive .lockbox { display: none; } }
+
+/* journey strip */
+.strip { border-top: 1px solid var(--bar-line); background: var(--bar); color: var(--bar-ink2); padding: 10px 16px 12px; overflow-x: auto; scrollbar-width: thin; }
+.strip-h { font-size: 13px; font-weight: 700; color: var(--bar-ink); margin-bottom: 8px; }
+.strip ol { list-style: none; padding: 0; display: flex; }
+.strip li { position: relative; flex: 1 0 84px; max-width: 168px; display: grid; justify-items: center; gap: 5px; font-size: 13px; line-height: 1.4; text-align: center; color: var(--bar-ink2); }
+.strip li::before { content: ""; position: absolute; top: 18px; left: 50%; width: 100%; height: 4px; border-radius: 2px; background: var(--bar-line); transition: background .3s; }
+.strip li:last-child::before { display: none; }
+.strip li[data-state="passed"]::before { background: var(--bar-active); }
+.strip li .th { position: relative; z-index: 1; transition: opacity .3s, box-shadow .3s; }
+.strip li span { max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip li[data-state="passed"] .th { opacity: .5; }
+.strip li[data-state="next"] .th { box-shadow: 0 0 0 3px var(--bar), 0 0 0 6px var(--bar-active); }
+.strip li[data-state="next"] span { color: var(--bar-ink); font-weight: 700; }
+
+/* demo finger */
+.cursor {
+  position: absolute; left: 0; top: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; z-index: 5;
+  background: rgba(255, 255, 255, .55); box-shadow: 0 0 0 2px rgba(19, 20, 23, .7), 0 0 0 3.5px rgba(255, 255, 255, .75), 0 6px 14px rgba(19, 20, 23, .3);
+  pointer-events: none; will-change: transform;
+}
+.cursor::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: rgba(19, 20, 23, .7); transition: inset .1s; }
+.cursor[data-down="true"]::after { inset: 4px; }
+
+/* ---------- below the display */
+.remote { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 24px; padding: 11px 12px 11px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+.story { display: grid; gap: 3px; min-width: 0; flex: 1 1 380px; }
+.caption { font-size: 13px; line-height: 1.5; color: var(--ink-2); min-height: 1.5em; text-wrap: balance; }
+.caption[data-on="true"] { color: var(--ink); }
+.chapters { list-style: none; padding: 0; display: flex; flex-wrap: wrap; align-items: center; font-size: 13px; line-height: 1.6; color: var(--ink-2); min-width: 0; }
+.chapters li { display: inline-flex; align-items: center; white-space: nowrap; transition: color .2s; }
+.chapters li + li::before { content: ""; width: 12px; height: 1px; background: var(--line); margin: 0 8px; }
+.chapters li[data-done="true"] { color: var(--ink); }
+.chapters li[data-on="true"] { color: var(--accent); font-weight: 700; }
+.rgroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.rlabel { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-right: 6px; white-space: nowrap; }
+.rbtn { height: 40px; padding: 0 13px; border-radius: 12px; border: 1px solid transparent; background: var(--fill); color: var(--ink); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background .16s, border-color .16s, color .16s, opacity .16s; }
+.rbtn.ico { width: 40px; padding: 0; justify-content: center; }
+.rbtn:disabled { opacity: .45; }
+.rbtn[aria-pressed="true"], .rbtn[data-flash="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); opacity: 1; }
+.rsep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+
+.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 28px; padding: 6px 4px 0; }
+.points div { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 10px; align-items: start; align-content: start; }
+.points svg { color: var(--accent); margin-top: 2px; }
+.points b { font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.points p { grid-column: 2; color: var(--ink-2); font-size: 14px; text-wrap: pretty; }
+
+.sdk { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+.sdk summary { cursor: pointer; padding: 12px 16px; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; list-style: none; }
+.sdk summary::-webkit-details-marker { display: none; }
+.sdk summary::after { content: ""; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); transform: translateY(-2px) rotate(45deg); transition: transform .18s; flex: none; }
+.sdk[open] summary::after { transform: translateY(2px) rotate(225deg); }
+.sdk summary span { color: var(--ink-2); font-weight: 400; font-size: 13px; }
+.sdk .log { list-style: none; margin: 0; padding: 0 16px 12px; max-height: 240px; overflow: auto; font: 12px/1.6 var(--font-mono); letter-spacing: 0; }
+.sdk .log li { padding: 5px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.sdk .log code { color: var(--accent); font-family: inherit; }
+.sdk .log span { color: var(--ink-2); }
+.foot { color: var(--ink-2); font-size: 13px; line-height: 1.6; text-wrap: pretty; }
+
+/* A narrow screen (a phone): the stage on top, the panel under it, inside the same height. */
+@container app (max-width: 640px) {
+  .mode { order: 2; }
+  .dest { order: 3; flex: 1 1 100%; }
+  .dest button { flex: 1; justify-content: center; }
+  .appbody { display: flex; flex-direction: column; height: calc(var(--map-h) - 48px); --stage-h: calc((var(--map-h) - 48px) * .44); }
+  .appbody[data-step="draw"] { --stage-h: calc((var(--map-h) - 48px) * .56); }
+  /* while driving the panel takes only what its three blocks need and the map gets the rest */
+  .appbody[data-step="drive"] { --stage-h: max(120px, calc(var(--map-h) - 300px)); }
+  .stage { flex: none; height: var(--stage-h); }
+  .panel { flex: 1; border-left: 0; border-top: 1px solid var(--a-line); }
+  .drawwrap { padding: 10px; }
+  .padbox { width: min(100%, calc(var(--stage-h) - 20px)); }
+  .say { font-size: 18px; }
+  .next { grid-template: "th lbl" auto "th name" auto "th dist" auto / auto minmax(0, 1fr); justify-items: start; align-content: center; text-align: left; gap: 2px 14px; padding: 10px 14px; }
+  .next #next-thumb { grid-area: th; align-self: center; }
+  .next .lbl { grid-area: lbl; }
+  .next b { grid-area: name; font-size: 20px; }
+  .next .dist { grid-area: dist; }
+  .next .th { width: 76px; border-radius: 18px; }
+  .drive .lockbox { display: none; }
+}
+@media (max-width: 1080px) {
+  .unit { --map-h: clamp(360px, min(52vw, calc(100vh - 472px)), 520px); grid-template-columns: minmax(0, 1fr); }
+  .unit[data-win="half"] .dev.kid { width: auto; }
+  .cluster { grid-template-columns: auto auto auto minmax(0, 1fr); grid-template-rows: auto; align-items: center; gap: 10px 14px; padding: 8px 14px; }
+  .tag, .cluster-note, .navmap, #btn-win { display: none; }
+  .gears { width: 132px; }
+  .speed b { font-size: 34px; }
+  .turn { padding: 7px 12px 7px 8px; }
+  .trip { margin: 0; padding: 0; }
+}
+/* On a short window the two labels above the screens are left out, so the app keeps its height. */
+@media (max-height: 800px) and (min-width: 721px) {
+  .dev-label { display: none; }
+  .dev { grid-template-rows: minmax(0, 1fr); }
+  .unit { --map-h: clamp(360px, min(40vw, calc(100vh - 330px)), 520px); }
+}
+@media (max-height: 800px) and (min-width: 721px) and (max-width: 1080px) {
+  .unit { --map-h: clamp(360px, min(52vw, calc(100vh - 420px)), 520px); }
+}
+@media (max-width: 720px) {
+  .unit { --map-h: 620px; }
+  .cluster { grid-template-columns: auto minmax(0, 1fr); }
+  .gears { display: none; }
+  .trip { grid-column: 1 / -1; margin-top: -4px; }
+  .points { grid-template-columns: minmax(0, 1fr); }
+  .lead { flex: 1 1 100%; }
+  .play { flex: 1 1 100%; justify-content: center; }
+  .sdk summary span { display: none; }
+  .dev-label span { display: none; }
+  .rsep { display: none; }
+  .chapters { font-size: 12px; }
+  .chapters li + li::before { width: 3px; height: 3px; border-radius: 50%; margin: 0 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect class="mk-bg" width="40" height="40" rx="11"/>
+        <path class="mk-line" d="M8 29c5 0 4-8 9-8s3 6 8 4 2-9 6-11" fill="none" stroke-width="3.2" stroke-linecap="round"/>
+        <circle class="mk-dot" cx="31" cy="12" r="4.2"/>
+        <circle class="mk-start" cx="8" cy="29" r="2.6"/>
+      </svg>
+      <div>
+        <p class="eyebrow">아이가 그리는 지도 · 차량용 앱 시연</p>
+        <h1>HI-MAP</h1>
+      </div>
+    </div>
+    <div class="intro">
+      <p class="lead"><span class="ln">운전석 내비는 그대로, 아이의 기기에는 아이가 그린 그림 지도가 떠요.</span> <span class="ln">그리기부터 도착까지 이어서 보거나, 화면을 직접 눌러 볼 수 있어요.</span></p>
+      <button type="button" class="play" id="demo-play"><span id="demo-ic"></span><span id="demo-t">시연 재생</span></button>
+    </div>
+  </header>
+
+  <section class="unit" id="unit" data-mode="day" aria-label="운전석 화면과 아이의 기기">
+    <div class="dev car">
+      <p class="dev-label">운전석 화면 <span>순정 내비 그대로</span></p>
+      <div class="bezel">
+        <div class="car-screen">
+          <aside class="cluster" aria-label="운전석 화면. 순정 내비가 그대로 보여요.">
+            <p class="tag">순정 내비</p>
+            <div class="gears" aria-label="기어"><span id="g-p" data-on="true">P</span><span>R</span><span>N</span><span id="g-d" data-on="false">D</span></div>
+            <div class="speed"><b id="speed">0</b><span>km/h</span></div>
+            <div class="turn"><span class="turn-arrow" id="turn-ic"></span><div><strong id="turn">정차 중</strong><small id="turn-d">출발 전</small></div></div>
+            <p class="trip" id="trip"></p>
+            <div class="navmap" role="img" aria-label="순정 내비의 지도를 본뜬 그림. 이 앱 때문에 바뀌지 않아요."><svg viewBox="0 0 188 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <g style="fill: var(--m-bldg)"><rect x="46" y="88" width="15" height="22" rx="3"/><rect x="64" y="116" width="14" height="16" rx="3"/><rect x="112" y="92" width="22" height="14" rx="3"/><rect x="118" y="128" width="16" height="24" rx="3"/><rect x="46" y="16" width="20" height="16" rx="3"/><rect x="112" y="24" width="16" height="22" rx="3"/><rect x="46" y="190" width="16" height="20" rx="3"/><rect x="114" y="192" width="20" height="14" rx="3"/></g>
+              <g fill="none" stroke-linecap="round" stroke-width="15" style="stroke: var(--m-road-edge)"><path d="M94 250V-10"/><path d="M-10 70h208"/><path d="M-10 170h208"/><path d="M30 -10v260"/><path d="M158 -10v260"/></g>
+              <g fill="none" stroke-linecap="round" stroke-width="12" style="stroke: var(--m-road)"><path d="M94 250V-10"/><path d="M-10 70h208"/><path d="M-10 170h208"/><path d="M30 -10v260"/><path d="M158 -10v260"/></g>
+              <path d="M94 198V-10" fill="none" stroke-linecap="round" stroke-width="6" style="stroke: var(--m-route)"/>
+              <path d="M94 178l12 28-12-7-12 7z" stroke-width="2.5" stroke-linejoin="round" style="fill: var(--m-route); stroke: var(--m-route-edge)"/>
+            </svg></div>
+            <p class="cluster-note"><span class="ln">운전석 화면은 바뀌지 않아요.</span> <span class="ln">길과 위치만 아이 기기로 보내요.</span></p>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <div class="dev kid">
+      <p class="dev-label"><b id="kid-name">아이의 태블릿</b> <span>아이가 그린 그림으로 보는 같은 길</span></p>
+      <div class="bezel">
+      <div class="screen">
+      <div class="statusbar">
+        <span><b id="clock">오전 8:12</b></span>
+        <span class="sb-r">
+          <span class="sb-link"><i aria-hidden="true"></i>차와 연결됨</span>
+          <span><svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true"><rect x=".75" y=".75" width="18.5" height="10.5" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="2.7" y="2.7" width="11.5" height="6.6" rx="1.4" fill="currentColor"/><rect x="20.2" y="4" width="1.8" height="4" rx=".9" fill="currentColor"/></svg></span>
+        </span>
+      </div>
+
+      <div class="app" id="app">
+        <div class="appbar">
+          <span class="appname">
+            <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+              <rect class="mk-bg" width="40" height="40" rx="11"/>
+              <path class="mk-line" d="M8 29c5 0 4-8 9-8s3 6 8 4 2-9 6-11" fill="none" stroke-width="3.2" stroke-linecap="round"/>
+              <circle class="mk-dot" cx="31" cy="12" r="4.2"/>
+              <circle class="mk-start" cx="8" cy="29" r="2.6"/>
+            </svg>
+            HI-MAP
+          </span>
+          <div class="dest" role="group" aria-label="목적지">
+            <button type="button" id="dest-school" aria-pressed="true"><i data-ic="flag" data-size="15"></i>학교</button>
+            <button type="button" id="dest-grandma" aria-pressed="false"><i data-ic="home" data-size="15"></i>할머니 집</button>
+          </div>
+          <span class="mode" id="mode" data-lock="false"><i aria-hidden="true"></i><span id="mode-t">정차 중 · 꾸미기</span></span>
+        </div>
+
+        <div class="appbody" id="appbody" data-step="assign">
+          <div class="stage" id="stage">
+            <div class="mapwrap" id="mapwrap">
+              <canvas id="map" aria-label="그림 지도"></canvas>
+              <span class="attrib">시연용 가상 지도</span>
+            </div>
+            <div class="drawwrap" id="drawwrap" hidden>
+              <div class="padbox">
+                <canvas class="pad" id="pad" aria-label="그림판. 손가락이나 마우스로 그려요."></canvas>
+                <p class="pad-hint" id="pad-hint">여기에 손가락으로 그려요</p>
+                <div class="padtools">
+                  <button type="button" class="icobtn" id="pad-undo" aria-label="되돌리기"><i data-ic="undo" data-size="20"></i></button>
+                  <button type="button" class="icobtn" id="pad-clear" aria-label="모두 지우기"><i data-ic="trash" data-size="20"></i></button>
+                </div>
+                <span class="loupe" id="loupe" hidden></span>
+              </div>
+            </div>
+            <div class="say" id="say" role="status" aria-live="polite" data-on="false" data-kind="voice"><span class="say-ico" id="say-face" aria-hidden="true"></span><span id="say-t"></span></div>
+          </div>
+
+          <div class="panel" id="panel">
+            <div class="tabs" role="tablist" aria-label="꾸미기 단계" id="tabs">
+              <button type="button" class="tab" role="tab" id="tab-draw" aria-selected="false" aria-controls="pane-draw">그리기</button>
+              <button type="button" class="tab" role="tab" id="tab-assign" aria-selected="true" aria-controls="pane-assign">붙이기</button>
+              <button type="button" class="tab" role="tab" id="tab-voice" aria-selected="false" aria-controls="pane-voice">목소리</button>
+              <button type="button" class="tab" role="tab" id="tab-preview" aria-selected="false" aria-controls="pane-preview">미리 보기</button>
+            </div>
+
+            <div class="pscroll" id="pscroll">
+            <div class="pane" id="pane-draw" role="tabpanel" aria-labelledby="tab-draw" hidden>
+              <p class="sec-h">도구</p>
+              <div class="pens" id="pens" role="group" aria-label="그리기 도구"></div>
+              <div class="colors">
+                <p class="sec-h">색<button type="button" class="textbtn" id="dropper" aria-pressed="false"><i data-ic="dropper" data-size="18"></i>스포이트</button></p>
+                <div class="swatches" id="swatches" role="group" aria-label="색">
+                  <button type="button" class="mix" id="mix" aria-pressed="false" aria-expanded="false" aria-controls="rgb" aria-label="RGB로 색 만들기"><i></i></button>
+                </div>
+                <div class="rgb" id="rgb" role="group" aria-label="RGB로 색 만들기" hidden>
+                  <div class="rgb-head"><i class="rgb-prev"></i><span id="rgb-txt">RGB 0, 0, 0</span><button type="button" class="sqbtn" id="rgb-close" aria-label="닫기"><i data-ic="x" data-size="18"></i></button></div>
+                  <label class="ch"><span>R</span><input class="range" type="range" id="rgb-r" min="0" max="255" step="1" aria-label="빨강 값"><input type="number" id="rgb-rn" min="0" max="255" inputmode="numeric" aria-label="빨강 값 숫자"></label>
+                  <label class="ch"><span>G</span><input class="range" type="range" id="rgb-g" min="0" max="255" step="1" aria-label="초록 값"><input type="number" id="rgb-gn" min="0" max="255" inputmode="numeric" aria-label="초록 값 숫자"></label>
+                  <label class="ch"><span>B</span><input class="range" type="range" id="rgb-b" min="0" max="255" step="1" aria-label="파랑 값"><input type="number" id="rgb-bn" min="0" max="255" inputmode="numeric" aria-label="파랑 값 숫자"></label>
+                </div>
+              </div>
+              <p class="sec-h">굵기<output id="size-n" for="size">11</output></p>
+              <div class="sizerow">
+                <button type="button" class="sqbtn" id="size-down" aria-label="가늘게"><i data-ic="minus" data-size="18"></i></button>
+                <input class="range" type="range" id="size" min="1" max="30" step="1" aria-label="굵기">
+                <button type="button" class="sqbtn" id="size-up" aria-label="굵게"><i data-ic="plus" data-size="18"></i></button>
+                <span class="sizedot" aria-hidden="true"><i id="size-dot"></i></span>
+              </div>
+              <div class="saverow">
+                <input class="field" id="draw-name" type="text" maxlength="12" placeholder="그림 이름 (예: 빨간 소방차)" aria-label="그림 이름" autocomplete="off">
+                <button type="button" class="btn-p" id="pad-save">저장</button>
+              </div>
+            </div>
+
+            <div class="pane" id="pane-assign" role="tabpanel" aria-labelledby="tab-assign">
+              <p class="sec-h">내 그림<span id="drawer-note"></span></p>
+              <div class="shelf" id="drawer"></div>
+              <div id="drawer-actions"></div>
+              <p class="hint"><span class="ln">그림을 고른 뒤 붙일 곳을 눌러요.</span> <span class="ln">지도에서 눌러도 붙고, 다시 누르면 떼어져요.</span></p>
+              <p class="sec-h">가는 길</p>
+              <div class="slots" id="slots-route"></div>
+              <p class="sec-h">지도 무늬</p>
+              <div class="slots" id="slots-bg"></div>
+            </div>
+
+            <div class="pane" id="pane-voice" role="tabpanel" aria-labelledby="tab-voice" hidden>
+              <p class="sec-h">안내 목소리<span id="voice-note"></span></p>
+              <div class="vlist" id="voices"></div>
+              <p class="hint"><span class="ln">캐릭터를 누르면 그 목소리로 들려줘요.</span> <span class="ln">시연에서는 기기 음성의 높낮이와 빠르기를 바꿔요.</span></p>
+            </div>
+
+            <div class="pane" id="pane-preview" role="tabpanel" aria-labelledby="tab-preview" hidden>
+              <p class="sum" id="preview-sum"></p>
+              <button type="button" class="btn-s" id="preview-play"><span id="preview-ic"></span><span id="preview-t">차례로 보기</span></button>
+              <ol class="plist" id="preview-list"></ol>
+            </div>
+
+            <div class="drive" id="drive" hidden>
+              <div class="next">
+                <span class="lbl" id="next-lbl">다음 그림</span>
+                <span id="next-thumb"></span>
+                <b id="next-name"></b>
+                <span class="dist" id="next-dist"></span>
+              </div>
+              <p class="sum" id="drive-sum"></p>
+              <button type="button" class="ask" id="ask-where"><i data-ic="mic"></i>"지금 어디야?" 물어보기</button>
+              <p class="lockbox"><i data-ic="lock" data-size="16"></i><span><span class="ln">달리는 동안에는 꾸밀 수 없어요.</span> <span class="ln">차가 멈추면 다시 열려요.</span></span></p>
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip">
+          <p class="strip-h" id="strip-h">오늘 가는 길</p>
+          <ol id="strip" aria-labelledby="strip-h"></ol>
+        </div>
+      </div>
+      </div>
+      </div>
+    </div>
+    <div class="cursor" id="cursor" data-down="false" hidden></div>
+  </section>
+
+  <section class="remote" aria-label="시연 조작">
+    <div class="story">
+      <ol class="chapters" id="chapters" aria-label="시연 순서"></ol>
+      <p class="caption" id="demo-cap" role="status" aria-live="polite"></p>
+    </div>
+    <div class="rgroup end" role="group" aria-label="차 대신 누르는 단추">
+      <span class="rlabel">차 대신 누르기</span>
+      <button type="button" class="rbtn" id="btn-go"><span id="go-ic"></span><span id="go-t">출발하기</span></button>
+      <button type="button" class="rbtn" id="btn-block" disabled><i data-ic="block"></i>길 막힘</button>
+      <span class="rsep" aria-hidden="true"></span>
+      <button type="button" class="rbtn" id="btn-win" aria-pressed="false">휴대폰 화면</button>
+      <button type="button" class="rbtn ico" id="btn-night" aria-pressed="false" aria-label="라이트 테마로 바꾸기"></button>
+      <button type="button" class="rbtn ico" id="btn-sound" aria-pressed="false" aria-label="소리 켜기"></button>
+      <button type="button" class="rbtn ico" id="btn-reset" aria-label="처음으로"><i data-ic="replay"></i></button>
+    </div>
+  </section>
+
+  <section class="points" aria-label="이 앱의 약속">
+    <div><i data-ic="navi" data-size="20"></i><b>운전석 화면은 그대로예요</b><p>순정 내비는 바뀌지 않고, 아이의 내비는 아이 기기에만 떠요.</p></div>
+    <div><i data-ic="eye" data-size="20"></i><b>같은 길을 같이 가요</b><p>차가 보내 준 길과 위치로 그림 앞에서 미리 알려 줘요.</p></div>
+    <div><i data-ic="route" data-size="20"></i><b>길이 바뀌면 먼저 말해요</b><p>순정 내비가 길을 바꾸면 남은 그림 수를 다시 세어 알려 줘요.</p></div>
+  </section>
+
+  <details class="sdk">
+    <summary><i data-ic="code" data-size="18"></i>이 순간에 차량 앱이 하는 일 보기 <span>차량 앱이 받아서 아이 기기로 보내는 것들이에요</span></summary>
+    <ol class="log" id="log" aria-live="off"></ol>
+  </details>
+
+  <p class="foot"><span class="ln">브라우저에서 동작하는 시연이에요. 지도는 가상의 동네이고 실제 차량 기능은 부르지 않아요.</span> <span class="ln">달리는 속도는 실제보다 빠르게 재생돼요. 그림과 고른 목소리는 이 브라우저에만 저장돼요.</span> <span class="ln">공모전 출품용 시안이에요. 왼쪽 운전석 화면은 차량의 순정 화면을 본떠 그린 것이고, 현대자동차그룹의 공식 앱이나 서비스가 아니에요.</span></p>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const el = (tag, attrs = {}, kids = []) => {
+    const n = document.createElement(tag);
+    for (const k in attrs) {
+      const v = attrs[k];
+      if (v === null || v === undefined) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    }
+    for (const c of [].concat(kids)) if (c) n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    return n;
+  };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  // Korean particle: picks by whether the last syllable ends in a consonant.
+  function josa(word, withFinal, withoutFinal) {
+    const c = word.charCodeAt(word.length - 1);
+    if (c < 0xAC00 || c > 0xD7A3) return withoutFinal;
+    return ((c - 0xAC00) % 28) ? withFinal : withoutFinal;
+  }
+
+  /* ================= icons: one small line set ================= */
+  const IC = {
+    play: '<path d="M8.5 5.5v13l10.5-6.5z" fill="currentColor" stroke-linejoin="round"/>',
+    pause: '<path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="2.6"/>',
+    replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5"/><path d="M4.5 4.5V9H9"/>',
+    car: '<path d="M5 16.5v-5l1.8-4.5h10.4L19 11.5v5"/><path d="M3.5 16.5h17"/><circle cx="7.6" cy="16.6" r="1.7"/><circle cx="16.4" cy="16.6" r="1.7"/>',
+    stop: '<rect x="6.5" y="6.5" width="11" height="11" rx="2"/>',
+    block: '<circle cx="12" cy="12" r="8.5"/><path d="M7.5 12h9" stroke-width="2.4"/>',
+    moon: '<path d="M19.5 14.2A7.6 7.6 0 0 1 9.8 4.5a7.6 7.6 0 1 0 9.7 9.7z"/>',
+    sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
+    sound: '<path d="M4 10v4h3.2L12 18V6l-4.8 4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18 6.8a7.4 7.4 0 0 1 0 10.4"/>',
+    mute: '<path d="M4 10v4h3.2L12 18V6l-4.8 4z"/><path d="m16 9.5 4.5 5M20.5 9.5 16 14.5"/>',
+    pencil: '<path d="M4.5 19.5l1-4.2L16.6 4.2l3.2 3.2L8.7 18.5z"/><path d="M14.2 6.6l3.2 3.2"/>',
+    dropper: '<path d="M10.5 6l7.5 7.5"/><path d="M12 7.5l4.5 4.5-7.3 7.3a2 2 0 0 1-1.4.6H5.5v-2.3a2 2 0 0 1 .6-1.4z"/><path d="M14.5 5.5l1.7-1.7a2.3 2.3 0 0 1 3.3 0l.7.7a2.3 2.3 0 0 1 0 3.3l-1.7 1.7"/>',
+    x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    minus: '<path d="M5.5 12h13" stroke-width="2.2"/>',
+    eye: '<path d="M2.8 12S6.2 5.8 12 5.8 21.2 12 21.2 12 17.8 18.2 12 18.2 2.8 12 2.8 12z"/><circle cx="12" cy="12" r="2.7"/>',
+    undo: '<path d="M8.5 9H4V4.5"/><path d="M4.6 9A8 8 0 1 1 5 15.5"/>',
+    trash: '<path d="M5 7.5h14M10 7.5v-2h4v2M7 7.5l.9 11.5h8.2L17 7.5"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5" stroke-width="2.4"/>',
+    plus: '<path d="M12 5.5v13M5.5 12h13" stroke-width="2.2"/>',
+    lock: '<rect x="5.5" y="10.5" width="13" height="9" rx="2.2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+    mic: '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/>',
+    flag: '<path d="M6.5 21V4"/><path d="M6.5 5h10.5l-2.4 3.4L17 12H6.5"/>',
+    home: '<path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/>',
+    arrowUp: '<path d="M12 19.5V5M6 11l6-6 6 6" stroke-width="2.4"/>',
+    arrowRight: '<path d="M6.5 19.5v-6a4 4 0 0 1 4-4H18" stroke-width="2.4"/><path d="M14 5.2l4.3 4.3L14 13.8" stroke-width="2.4"/>',
+    arrowLeft: '<path d="M17.5 19.5v-6a4 4 0 0 0-4-4H6" stroke-width="2.4"/><path d="M10 5.2 5.7 9.5l4.3 4.3" stroke-width="2.4"/>',
+    park: '<path d="M9 18V6h4.2a3.6 3.6 0 0 1 0 7.2H9" stroke-width="2.4"/>',
+    route: '<circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.4 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.6"/>',
+    code: '<path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',
+    grid: '<rect x="4.5" y="4.5" width="6" height="6" rx="1.6"/><rect x="13.5" y="4.5" width="6" height="6" rx="1.6"/><rect x="4.5" y="13.5" width="6" height="6" rx="1.6"/><rect x="13.5" y="13.5" width="6" height="6" rx="1.6"/>',
+    navi: '<path d="M12 3.5 19 20l-7-3.6L5 20z"/>',
+    note: '<path d="M9.5 17.5V6l9-2v11.5"/><circle cx="7" cy="17.5" r="2.5"/><circle cx="16" cy="15.5" r="2.5"/>',
+    phone: '<path d="M6.5 4.5h3l1.5 4-2 1.5a11 11 0 0 0 5 5l1.5-2 4 1.5v3a1.5 1.5 0 0 1-1.6 1.5A15.5 15.5 0 0 1 5 6.1 1.5 1.5 0 0 1 6.5 4.5z"/>',
+    temp: '<path d="M12 4.5a2 2 0 0 1 2 2v7.2a3.8 3.8 0 1 1-4 0V6.5a2 2 0 0 1 2-2z"/><path d="M12 10v6"/>'
+  };
+  function icon(name, size) {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const px = size || 18;
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', px); s.setAttribute('height', px);
+    s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '1.8');
+    s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = IC[name] || '';
+    return s;
+  }
+  function setIcon(holder, name, size) { holder.textContent = ''; holder.appendChild(icon(name, size)); }
+  for (const n of Array.from(document.querySelectorAll('[data-ic]'))) n.replaceWith(icon(n.getAttribute('data-ic'), Number(n.getAttribute('data-size')) || 18));
+
+  /* ================= world: a small made-up town ================= */
+  const XS = [0, 300, 600, 900, 1200, 1500, 1800, 2100];
+  const YS = [0, 260, 520, 780, 1040, 1300];
+  const W = 2100, H = 1300;
+  const R = rng(20261112);
+  const nodes = {};
+  XS.forEach((x, c) => YS.forEach((y, r) => {
+    nodes[c + ',' + r] = { id: c + ',' + r, c, r, x: x + (R() - 0.5) * 44, y: y + (R() - 0.5) * 44 };
+  }));
+  const key = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+  const BRIDGE_COLS = [1, 4, 6];
+  const REMOVED = new Set(['3,0|3,1', '5,4|6,4', '2,3|2,4']);
+  const edges = [], adj = {}, edgeByKey = {};
+  function addEdge(a, b, bridge) {
+    const k = key(a, b);
+    if (REMOVED.has(k)) return;
+    const A = nodes[a], B = nodes[b];
+    // Main roads: two cross-town avenues and the three streets that carry the bridges.
+    const main = (A.r === B.r && (A.r === 1 || A.r === 3)) || (A.c === B.c && BRIDGE_COLS.includes(A.c));
+    const e = { a, b, k, A, B, len: dist(A, B), bridge: !!bridge, main };
+    edges.push(e); edgeByKey[k] = e;
+    (adj[a] = adj[a] || []).push({ to: b, e });
+    (adj[b] = adj[b] || []).push({ to: a, e });
+  }
+  for (let c = 0; c < XS.length; c++) for (let r = 0; r < YS.length; r++) {
+    if (c < XS.length - 1) addEdge(c + ',' + r, (c + 1) + ',' + r, false);
+    if (r < YS.length - 1) {
+      if (r === 2) { if (BRIDGE_COLS.includes(c)) addEdge(c + ',' + r, c + ',' + (r + 1), true); }
+      else addEdge(c + ',' + r, c + ',' + (r + 1), false);
+    }
+  }
+  const riverY = x => 650 + 26 * Math.sin(x / 330 + 0.6);
+  const PARK_CELLS = new Set(['2,0', '3,0', '5,3']);
+  const parks = [], buildings = [], blocks = [], trees = [];
+  const boxOf = q => ({ x0: Math.min(q[0].x, q[3].x), x1: Math.max(q[1].x, q[2].x), y0: Math.min(q[0].y, q[1].y), y1: Math.max(q[2].y, q[3].y) });
+  // One city block: its lots and buildings, then the block itself pulled in from the road centre lines.
+  function buildBlock(q, rnd) {
+    const [tl, tr, br, bl] = q;
+    const L = Math.max(tl.x, bl.x) + 30, Rr = Math.min(tr.x, br.x) - 30, T = Math.max(tl.y, tr.y) + 30, B = Math.min(bl.y, br.y) - 30;
+    const nx = 3, ny = 2, lw = (Rr - L) / nx, lh = (B - T) / ny;
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      if (rnd() < 0.08) continue;
+      const bx = L + i * lw + 6 + rnd() * 10, by = T + j * lh + 6 + rnd() * 10;
+      buildings.push({ x: bx, y: by, w: Math.max(20, lw - 14 - rnd() * 30), h: Math.max(20, lh - 14 - rnd() * 26) });
+    }
+    const cx = (tl.x + tr.x + br.x + bl.x) / 4, cy = (tl.y + tr.y + br.y + bl.y) / 4;
+    const blk = q.map(p => ({ x: lerp(p.x, cx, 0.17), y: lerp(p.y, cy, 0.17) }));
+    blk.box = boxOf(q); blocks.push(blk);
+  }
+  function addPark(q) { q.box = boxOf(q); parks.push(q); }
+  for (let c = 0; c < XS.length - 1; c++) for (let r = 0; r < YS.length - 1; r++) {
+    const q = [nodes[c + ',' + r], nodes[(c + 1) + ',' + r], nodes[(c + 1) + ',' + (r + 1)], nodes[c + ',' + (r + 1)]];
+    if (r === 2 || PARK_CELLS.has(c + ',' + r)) addPark(q); else buildBlock(q, R);
+  }
+  // The town carries on past the streets the trips use, so the map never shows an edge.
+  // The outskirts come from their own generator; the inner town above stays exactly as it was.
+  const C0 = -2, C1 = 9, R0 = -2, R1 = 7;
+  const BOUNDS = { x0: C0 * 300, x1: C1 * 300, y0: R0 * 260, y1: R1 * 260 };
+  const far = {}, streets = edges.slice();
+  (function outskirts() {
+    const O = rng(5150);
+    const corner = (c, r) => nodes[c + ',' + r] || far[c + ',' + r];
+    const inner = n => !!nodes[n.c + ',' + n.r];
+    for (let c = C0; c <= C1; c++) for (let r = R0; r <= R1; r++) {
+      if (!nodes[c + ',' + r]) far[c + ',' + r] = { c, r, x: c * 300 + (O() - 0.5) * 44, y: r * 260 + (O() - 0.5) * 44 };
+    }
+    const link = (A, B, bridge) => {
+      if (inner(A) && inner(B)) return; // those streets exist already
+      streets.push({ A, B, bridge, main: (A.r === B.r && (A.r === 1 || A.r === 3)) || (A.c === B.c && BRIDGE_COLS.includes(A.c)) });
+    };
+    for (let c = C0; c <= C1; c++) for (let r = R0; r <= R1; r++) {
+      if (c < C1) link(corner(c, r), corner(c + 1, r), false);
+      if (r < R1) { if (r !== 2) link(corner(c, r), corner(c, r + 1), false); else if (c === -1 || c === 8) link(corner(c, r), corner(c, r + 1), true); }
+    }
+    for (let c = C0; c < C1; c++) for (let r = R0; r < R1; r++) {
+      if (c >= 0 && c < XS.length - 1 && r >= 0 && r < YS.length - 1) continue;
+      const q = [corner(c, r), corner(c + 1, r), corner(c + 1, r + 1), corner(c, r + 1)];
+      if (r === 2 || O() < 0.1) addPark(q); else buildBlock(q, O);
+    }
+  })();
+  const river = [];
+  for (let x = BOUNDS.x0 - 120; x <= BOUNDS.x1 + 120; x += 60) river.push({ x, y: riverY(x) - 58 });
+  for (let x = BOUNDS.x1 + 120; x >= BOUNDS.x0 - 120; x -= 60) river.push({ x, y: riverY(x) + 58 });
+  // Tree dots for the parks, from their own generator so the town above stays exactly as it was.
+  (function plant() {
+    const T = rng(4107);
+    for (const q of parks) for (let i = 0; i < 16; i++) {
+      const u = 0.12 + T() * 0.76, v = 0.12 + T() * 0.76;
+      const x = lerp(lerp(q[0].x, q[1].x, u), lerp(q[3].x, q[2].x, u), v), y = lerp(lerp(q[0].y, q[1].y, u), lerp(q[3].y, q[2].y, u), v);
+      if (Math.abs(y - riverY(x)) < 76) continue;
+      trees.push({ x, y, r: 8 + T() * 6 });
+    }
+  })();
+  const ROAD_NAMES = [['0,4', '1,4', '한빛로'], ['4,0', '5,0', '가온로'], ['2,5', '3,5', '다솜길'], ['6,1', '7,1', '새봄로']].map(([a, b, name]) => {
+    const A = nodes[a], B = nodes[b];
+    return { name, x: (A.x + B.x) / 2, y: (A.y + B.y) / 2, rot: Math.atan2(B.y - A.y, B.x - A.x) };
+  });
+  const RIVER_NAME = { name: '늘봄천', x: 1955, y: riverY(1955) };
+  const TYPES = {
+    shop: '편의점', bakery: '빵집', bridge: '다리', fire: '소방서', tree: '큰 나무', play: '놀이터', library: '도서관',
+    market: '시장', gas: '주유소', post: '우체국', flower: '꽃집', home: '우리 집', school: '학교', grandma: '할머니 집', car: '내 차'
+  };
+  const PLACES = {
+    home: { id: 'home', type: 'home', name: '우리 집', node: '1,1', dx: -150, dy: -150 },
+    school: { id: 'school', type: 'school', name: '학교', node: '5,4', dx: 150, dy: -150 },
+    grandma: { id: 'grandma', type: 'grandma', name: '할머니 집', node: '6,0', dx: -150, dy: -150 }
+  };
+  for (const id in PLACES) { const p = PLACES[id], n = nodes[p.node]; p.x = n.x + p.dx; p.y = n.y + p.dy; }
+  const LM_DEF = [
+    ['cs1', 'shop', '1,1', '1,2', 0.55, 1], ['bakery', 'bakery', '1,3', '2,3', 0.5, -1],
+    ['bridgeA', 'bridge', '1,2', '1,3', 0.5, 0], ['bridgeB', 'bridge', '4,2', '4,3', 0.5, 0], ['bridgeC', 'bridge', '6,2', '6,3', 0.5, 0],
+    ['fire', 'fire', '2,1', '3,1', 0.5, 1], ['tree', 'tree', '3,1', '4,1', 0.4, -1], ['play', 'play', '4,3', '5,3', 0.5, 1],
+    ['library', 'library', '4,3', '4,4', 0.5, -1], ['market', 'market', '2,3', '3,3', 0.5, 1], ['gas', 'gas', '4,1', '5,1', 0.5, 1],
+    ['post', 'post', '5,3', '5,4', 0.5, 1], ['cs2', 'shop', '4,4', '5,4', 0.5, -1], ['flower', 'flower', '5,0', '6,0', 0.5, 1],
+    ['tree2', 'tree', '3,3', '4,3', 0.5, -1], ['bakery2', 'bakery', '5,1', '6,1', 0.5, -1]
+  ];
+  const landmarks = LM_DEF.map(([id, type, a, b, t, side]) => {
+    const A = nodes[a], B = nodes[b], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1;
+    return { id, type, name: TYPES[type], x: lerp(A.x, B.x, t) + (-dy / L) * 40 * side, y: lerp(A.y, B.y, t) + (dx / L) * 40 * side };
+  });
+
+  /* ================= routing ================= */
+  function shortest(start, goal, blocked) {
+    const D = {}, P = {}, Q = new Set(Object.keys(nodes));
+    for (const id of Q) D[id] = Infinity;
+    D[start] = 0;
+    while (Q.size) {
+      let u = null, best = Infinity;
+      for (const id of Q) if (D[id] < best) { best = D[id]; u = id; }
+      if (u === null) break;
+      Q.delete(u);
+      if (u === goal) break;
+      for (const { to, e } of adj[u] || []) {
+        if (blocked && blocked.has(e.k)) continue;
+        const nd = D[u] + e.len;
+        if (nd < D[to]) { D[to] = nd; P[to] = u; }
+      }
+    }
+    if (D[goal] === Infinity) return null;
+    const path = [goal];
+    while (path[0] !== start) path.unshift(P[path[0]]);
+    return path;
+  }
+  function makeRoute(pts, ids) {
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + dist(pts[i - 1], pts[i]));
+    return { pts, ids, cum, total: cum[cum.length - 1] };
+  }
+  function at(route, s) {
+    s = clamp(s, 0, route.total);
+    let i = 1;
+    while (i < route.cum.length - 1 && route.cum[i] < s) i++;
+    const a = route.pts[i - 1], b = route.pts[i], seg = (route.cum[i] - route.cum[i - 1]) || 1, t = (s - route.cum[i - 1]) / seg;
+    return { x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t), i, heading: Math.atan2(b.y - a.y, b.x - a.x) };
+  }
+  function project(route, p) {
+    let best = { s: 0, d: Infinity };
+    for (let i = 1; i < route.pts.length; i++) {
+      const a = route.pts[i - 1], b = route.pts[i], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1;
+      const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / L2, 0, 1);
+      const d = Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
+      if (d < best.d) best = { s: route.cum[i - 1] + Math.sqrt(L2) * t, d };
+    }
+    return best;
+  }
+  // Landmarks close to the route, in travel order, kept apart on the road and on the screen, at most six.
+  // After a change of route, `keep` holds the places already announced (they stay), `skip` those already passed,
+  // and a new place must be far enough ahead to be announced after the "route changed" sentence.
+  function pickStops(route, keep, skip) {
+    const c = [], lead = keep ? 200 : 60, ends = [PLACES.home, destPlace()];
+    for (const lm of landmarks) {
+      if (skip && skip.has(lm.id)) continue;
+      const pr = project(route, lm), held = !!keep && keep.has(lm.id);
+      const clear = ends.every(p => dist(lm, p) >= 170); // pins never sit on top of home or the destination
+      if (pr.d <= 64 && pr.s < route.total - 60 && (held || (pr.s > lead && clear))) c.push({ lm, s: pr.s, held });
+    }
+    c.sort((a, b) => a.s - b.s);
+    const out = [];
+    for (const x of c) {
+      if (x.held || out.every(o => x.s - o.s >= 300 && dist(x.lm, o.lm) >= 250)) out.push(x);
+      if (out.length === 6) break;
+    }
+    return out;
+  }
+
+  /* ================= drawings ================= */
+  const PALETTE = [['#D2493F', '빨강'], ['#E38B2C', '주황'], ['#E2B93B', '노랑'], ['#4F9A5B', '초록'], ['#3F7CC4', '파랑'], ['#8B62B8', '보라'], ['#8A6548', '갈색'], ['#2A2A2A', '검정'], ['#FFFFFF', '하양']];
+  // Four pens. A stroke remembers which pen drew it; strokes saved before the pens existed draw like the name pen.
+  //   hl    형광펜: wide, flat-ended, see-through ink that darkens what lies under it
+  //   sign  사인펜: a fine felt tip, a little see-through, so crossings build up
+  //   name  네임펜: a bold round tip with solid ink that covers what lies under it
+  //   brush 붓: the line swells when the hand is slow, thins when it is fast, and tapers at both ends
+  const TOOLS = { hl: { name: '형광펜', size: 22 }, sign: { name: '사인펜', size: 4 }, name: { name: '네임펜', size: 11 }, brush: { name: '붓', size: 14 } };
+  const TOOL_ORDER = ['hl', 'sign', 'name', 'brush'];
+  const SIZE_UNIT = 1 / 240; // one step of the size slider, as a share of the paper's width
+  const drawings = [];
+  let counter = 0;
+  function bbox(strokes) {
+    let x0 = 1, y0 = 1, x1 = 0, y1 = 0, mw = 0;
+    for (const s of strokes) { mw = Math.max(mw, s.w * (s.t === 'brush' ? 1.2 : 1)); for (const p of s.p) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); } }
+    const pad = mw / 2 + 0.02;
+    return { x0: x0 - pad, y0: y0 - pad, x1: x1 + pad, y1: y1 + pad };
+  }
+  // Width along a brush stroke, from the spacing of its points (a fast hand leaves them far apart) and from its two ends.
+  function brushWidths(pts, w) {
+    const n = pts.length, out = new Array(n), ends = Math.max(1, Math.min(8, (n - 1) / 2));
+    let f = 1;
+    for (let i = 0; i < n; i++) {
+      const j = i || Math.min(1, n - 1); // the first point takes the pace of the first step
+      const d = Math.hypot(pts[j][0] - pts[j - (j ? 1 : 0)][0], pts[j][1] - pts[j - (j ? 1 : 0)][1]);
+      const want = clamp(1.2 - d * 26, 0.38, 1.2);
+      f = i ? f + (want - f) * 0.5 : want;
+      out[i] = w * f * (0.3 + 0.7 * Math.min(1, Math.min(i, n - 1 - i) / ends));
+    }
+    return out;
+  }
+  function paintStrokes(ctx, strokes, scale, ox, oy) {
+    const X = p => (p[0] - ox) * scale, Y = p => (p[1] - oy) * scale;
+    for (const s of strokes) {
+      const t = TOOLS[s.t] ? s.t : 'name', w = Math.max(1, s.w * scale), p = s.p;
+      ctx.save();
+      ctx.strokeStyle = s.c; ctx.fillStyle = s.c; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      if (t === 'hl') { ctx.globalAlpha = 0.45; ctx.globalCompositeOperation = 'multiply'; ctx.lineCap = 'butt'; ctx.lineJoin = 'bevel'; }
+      else if (t === 'sign') ctx.globalAlpha = 0.86;
+      if (p.length === 1) {
+        // a single touch leaves the mark of the tip
+        if (t === 'hl') ctx.fillRect(X(p[0]) - w / 2, Y(p[0]) - w * 0.3, w, w * 0.6);
+        else { ctx.beginPath(); ctx.arc(X(p[0]), Y(p[0]), w * (t === 'brush' ? 0.42 : 0.5), 0, Math.PI * 2); ctx.fill(); }
+      } else if (t === 'brush') {
+        const ws = brushWidths(p, s.w);
+        for (let i = 1; i < p.length; i++) {
+          ctx.lineWidth = Math.max(1, (ws[i - 1] + ws[i]) / 2 * scale);
+          ctx.beginPath(); ctx.moveTo(X(p[i - 1]), Y(p[i - 1])); ctx.lineTo(X(p[i]), Y(p[i])); ctx.stroke();
+        }
+      } else {
+        ctx.lineWidth = w;
+        ctx.beginPath(); ctx.moveTo(X(p[0]), Y(p[0]));
+        for (let i = 1; i < p.length; i++) ctx.lineTo(X(p[i]), Y(p[i]));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  function renderDrawing(strokes, size) {
+    const b = bbox(strokes), side = Math.max(b.x1 - b.x0, b.y1 - b.y0, 0.05);
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    paintStrokes(c.getContext('2d'), strokes, size / side, cx - side / 2, cy - side / 2);
+    return c;
+  }
+  function addDrawing(d) {
+    const canvas = renderDrawing(d.strokes, 224);
+    const tile = document.createElement('canvas'); tile.width = tile.height = 96;
+    tile.getContext('2d').drawImage(canvas, 10, 10, 76, 76);
+    const o = { id: d.id, name: d.name, strokes: d.strokes, example: !!d.example, demo: !!d.demo, canvas, tile, url: canvas.toDataURL('image/png') };
+    drawings.push(o);
+    return o;
+  }
+  const byId = id => drawings.find(d => d.id === id) || null;
+  // Stroke helpers shared by the example drawings and the demo's own drawing.
+  const segPts = (a, b, n = 8) => { const o = []; for (let i = 0; i <= n; i++) o.push([lerp(a[0], b[0], i / n), lerp(a[1], b[1], i / n)]); return o; };
+  const polyPts = (ps, n = 6) => { let o = []; for (let i = 1; i < ps.length; i++) o = o.concat(segPts(ps[i - 1], ps[i], n)); return o; };
+  const ringPts = (cx, cy, rx, ry, turns = 1.08, n = 30) => { const o = []; for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 + i / n * Math.PI * 2 * turns; o.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); } return o; };
+  // Example drawings, made with the same stroke engine a child's finger uses.
+  (function seed() {
+    const r = rng(7);
+    const wob = (pts, a = 0.012) => pts.map(p => [p[0] + (r() - 0.5) * a, p[1] + (r() - 0.5) * a]);
+    const S = (c, w, p) => ({ c, w, p: wob(p) });
+    addDrawing({ id: 'ex-house', name: '빨간 집', example: true, strokes: [
+      S('#D2493F', 0.045, polyPts([[.25, .5], [.25, .85], [.75, .85], [.75, .5], [.25, .5]])),
+      S('#8A6548', 0.045, polyPts([[.17, .53], [.5, .2], [.83, .53]])),
+      S('#3F7CC4', 0.03, polyPts([[.44, .85], [.44, .65], [.57, .65], [.57, .85]])),
+      S('#E2B93B', 0.028, ringPts(.33, .63, .05, .05, 1.3, 18))
+    ] });
+    addDrawing({ id: 'ex-bridge', name: '파란 다리', example: true, strokes: [
+      S('#3F7CC4', 0.05, (() => { const o = []; for (let i = 0; i <= 20; i++) { const t = i / 20; o.push([.12 + .76 * t, .7 - Math.sin(t * Math.PI) * .42]); } return o; })()),
+      S('#3F7CC4', 0.04, segPts([.07, .7], [.93, .7], 12)),
+      S('#3F7CC4', 0.026, segPts([.31, .7], [.31, .43], 4)), S('#3F7CC4', 0.026, segPts([.5, .7], [.5, .3], 5)), S('#3F7CC4', 0.026, segPts([.69, .7], [.69, .43], 4)),
+      S('#4F9A5B', 0.024, (() => { const o = []; for (let i = 0; i <= 24; i++) { const t = i / 24; o.push([.1 + .8 * t, .88 + Math.sin(t * Math.PI * 5) * .025]); } return o; })())
+    ] });
+    addDrawing({ id: 'ex-tree', name: '초록 나무', example: true, strokes: [
+      S('#8A6548', 0.06, segPts([.5, .92], [.5, .55], 6)),
+      S('#4F9A5B', 0.05, ringPts(.5, .37, .27, .24, 2.2, 60)),
+      S('#4F9A5B', 0.045, ringPts(.5, .39, .14, .12, 1.4, 26))
+    ] });
+    addDrawing({ id: 'ex-bus', name: '노란 버스', example: true, strokes: [
+      S('#E2B93B', 0.05, polyPts([[.14, .38], [.86, .38], [.86, .68], [.14, .68], [.14, .38]])),
+      S('#E2B93B', 0.045, polyPts([[.2, .6], [.32, .46], [.44, .6], [.56, .46], [.68, .6], [.8, .46]])),
+      S('#3F7CC4', 0.026, polyPts([[.22, .44], [.34, .44], [.34, .53], [.22, .53], [.22, .44]], 3)),
+      S('#3F7CC4', 0.026, polyPts([[.44, .44], [.56, .44], [.56, .53], [.44, .53], [.44, .44]], 3)),
+      S('#3F7CC4', 0.026, polyPts([[.66, .44], [.78, .44], [.78, .53], [.66, .53], [.66, .44]], 3)),
+      S('#2A2A2A', 0.035, ringPts(.3, .73, .065, .065, 2, 24)), S('#2A2A2A', 0.035, ringPts(.7, .73, .065, .065, 2, 24))
+    ] });
+  })();
+
+  /* ================= voices: who reads the sentences ================= */
+  // Four made-up characters. Each reads the same sentences at its own pitch and pace.
+  const VOICES = [
+    { id: 'sol', name: '솔이', kind: '여우', tone: '부드럽고 차분한 목소리', pitch: 1.15, rate: 0.95 },
+    { id: 'bori', name: '보리', kind: '곰', tone: '낮고 느긋한 목소리', pitch: 0.6, rate: 0.88 },
+    { id: 'danbi', name: '단비', kind: '토끼', tone: '높고 밝은 목소리', pitch: 1.6, rate: 1.05 },
+    { id: 'byeol', name: '별이', kind: '로봇', tone: '또박또박 고른 목소리', pitch: 1, rate: 0.8 }
+  ];
+  const EYES = (y, a, b) => '<circle cx="' + a + '" cy="' + y + '" r="2" fill="#2B2B2B"/><circle cx="' + b + '" cy="' + y + '" r="2" fill="#2B2B2B"/>';
+  const SMILE = y => '<path d="M21.6 ' + y + 'c1.5 1.4 3.3 1.4 4.8 0" fill="none" stroke="#2B2B2B" stroke-width="1.4" stroke-linecap="round"/>';
+  const FACES = {
+    sol: '<rect width="48" height="48" fill="#FFE9D2"/><path d="M8 7l12 8-9 7z" fill="#E8833A"/><path d="M40 7 28 15l9 7z" fill="#E8833A"/><path d="M11.5 11.5l5 3.5-3.8 3z" fill="#6B4130"/><path d="M36.5 11.5l-5 3.5 3.8 3z" fill="#6B4130"/>'
+      + '<path d="M24 12c9 0 15.5 7 15.5 15S33 42 24 42 8.5 35 8.5 27 15 12 24 12z" fill="#E8833A"/><path d="M24 27c5.5 0 12 3.6 12.5 7.4C34.5 39 29.8 42 24 42s-10.5-3-12.5-7.6C12 30.6 18.5 27 24 27z" fill="#FFF7EE"/>'
+      + EYES(25, 18, 30) + '<circle cx="24" cy="32" r="2.1" fill="#2B2B2B"/>' + SMILE(35.5),
+    bori: '<rect width="48" height="48" fill="#EFE3D6"/><circle cx="12" cy="14" r="6.5" fill="#8E6243"/><circle cx="36" cy="14" r="6.5" fill="#8E6243"/><circle cx="12" cy="14" r="3.2" fill="#C99C79"/><circle cx="36" cy="14" r="3.2" fill="#C99C79"/>'
+      + '<circle cx="24" cy="27" r="16" fill="#8E6243"/><ellipse cx="24" cy="32.5" rx="8" ry="6.2" fill="#EBD2B7"/>'
+      + EYES(25, 17.5, 30.5) + '<ellipse cx="24" cy="30" rx="2.6" ry="1.9" fill="#2B2B2B"/>' + SMILE(34),
+    danbi: '<rect width="48" height="48" fill="#FBE3EA"/><ellipse cx="17" cy="12" rx="4.6" ry="11" fill="#FFFFFF"/><ellipse cx="31" cy="12" rx="4.6" ry="11" fill="#FFFFFF"/><ellipse cx="17" cy="13" rx="2" ry="7.2" fill="#F4A9BB"/><ellipse cx="31" cy="13" rx="2" ry="7.2" fill="#F4A9BB"/>'
+      + '<circle cx="24" cy="30" r="14" fill="#FFFFFF"/><circle cx="15.5" cy="34" r="2.7" fill="#F9C6D2"/><circle cx="32.5" cy="34" r="2.7" fill="#F9C6D2"/>'
+      + EYES(29, 19, 29) + '<path d="M22.5 32.6h3l-1.5 1.9z" fill="#E77F9A"/>' + SMILE(36.2),
+    byeol: '<rect width="48" height="48" fill="#DCE8FB"/><path d="M24 12V7.5" stroke="#5B7FC7" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="6.5" r="2.7" fill="#F5C542"/>'
+      + '<rect x="5.5" y="23" width="4" height="8" rx="2" fill="#5B7FC7"/><rect x="38.5" y="23" width="4" height="8" rx="2" fill="#5B7FC7"/><rect x="9" y="12" width="30" height="28" rx="8" fill="#7C9FE3"/>'
+      + '<rect x="13" y="18" width="22" height="12" rx="6" fill="#1F2B45"/><circle cx="19.5" cy="24" r="2.3" fill="#9FE3FF"/><circle cx="28.5" cy="24" r="2.3" fill="#9FE3FF"/><path d="M19.5 34.5h9" stroke="#1F2B45" stroke-width="2" stroke-linecap="round"/>'
+  };
+  function face(id) {
+    const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    s.setAttribute('viewBox', '0 0 48 48'); s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = FACES[id] || FACES.sol;
+    return s;
+  }
+
+  /* ================= state ================= */
+  const STORE = 'my-drawing-map.v1';
+  const DEMO_ID = 'demo-truck';
+  const SPEED_MANUAL = 46, SPEED_DEMO = 84; // world units per second; both are sped up against a real drive
+  const state = {
+    dest: 'school', gear: 'P', route: null, stops: [], earlier: [], trail: [], s: 0, odo: 0, blocked: new Set(), announced: new Set(), passed: new Set(),
+    arrived: false, tab: 'assign', picked: null, focus: null, nightOverride: null, sound: false, speed: SPEED_MANUAL,
+    cam: { x: W / 2, y: H / 2, k: 0.3 }, hit: [], strokes: [], stroke: null,
+    pen: { tool: 'name', c: PALETTE[0][0], custom: '#2BB3A8', sizes: { hl: TOOLS.hl.size, sign: TOOLS.sign.size, name: TOOLS.name.size, brush: TOOLS.brush.size } },
+    dropper: false, sampling: false, voice: VOICES[0].id, onPaper: null, cleared: null, confirmDelete: null,
+    nextDistShown: -1, nextKeyShown: '', turnIc: '', speedAt: 0, pop: null, navNote: null
+  };
+  // The one-button demo: its clock, where it is, and the viewer's own stickers and voice it puts back afterwards.
+  const demo = { run: 0, on: false, paused: false, done: false, taken: false, chapter: -1, backup: null };
+  const DEFAULT_ASSIGN = () => {
+    const a = { car: 'ex-bus', 'place:home': 'ex-house' };
+    for (const lm of landmarks) { if (lm.type === 'bridge') a['lm:' + lm.id] = 'ex-bridge'; if (lm.type === 'tree') a['lm:' + lm.id] = 'ex-tree'; }
+    return a;
+  };
+  let assign = DEFAULT_ASSIGN();
+  (function load() {
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      for (const x of d.drawings || []) if (x && x.id && Array.isArray(x.strokes) && x.strokes.length) addDrawing({ id: x.id, name: String(x.name || '내 그림'), strokes: x.strokes });
+      if (d.assign && typeof d.assign === 'object') { assign = {}; for (const k in d.assign) if (byId(d.assign[k])) assign[k] = d.assign[k]; }
+      counter = Number(d.counter) || 0;
+      if (VOICES.some(v => v.id === d.voice)) state.voice = d.voice;
+    } catch (e) { /* storage may be unavailable; the page works without it */ }
+  })();
+  // Nothing the demo does is stored, and its own drawing never is, so a viewer's saved drawings stay theirs.
+  function save() {
+    if (demo.on) return;
+    demo.backup = null; // the viewer changed something by hand, so their stickers and voice as they are now stand
+    try {
+      const keep = {};
+      for (const k in assign) { const d = byId(assign[k]); if (d && !d.demo) keep[k] = assign[k]; }
+      localStorage.setItem(STORE, JSON.stringify({ counter, voice: state.voice, assign: keep, drawings: drawings.filter(d => !d.example && !d.demo).map(d => ({ id: d.id, name: d.name, strokes: d.strokes })) }));
+    } catch (e) { /* ignore */ }
+  }
+  const destPlace = () => PLACES[state.dest];
+  const voiceOf = () => VOICES.find(v => v.id === state.voice) || VOICES[0];
+  const slotDrawing = k => (assign[k] ? byId(assign[k]) : null);
+  const stopLabel = st => { const d = slotDrawing('lm:' + st.lm.id); return d ? d.name : st.lm.name; };
+  const placeLabel = p => { const d = slotDrawing('place:' + p.id); return d && !d.example ? d.name : p.name; };
+  const remaining = () => state.stops.filter(st => !state.passed.has(st.lm.id)).length;
+
+  /* ================= SDK call log ================= */
+  const logEl = $('#log');
+  function log(api, note) {
+    const li = el('li', {}, [el('code', { text: api }), note ? el('span', { text: '  ' + note }) : null]);
+    logEl.insertBefore(li, logEl.firstChild);
+    while (logEl.children.length > 40) logEl.removeChild(logEl.lastChild);
+  }
+
+  /* ================= speech and captions ================= */
+  const sayEl = $('#say'), sayText = $('#say-t'), sayFace = $('#say-face');
+  let sayTimer = 0;
+  // One sentence to a line, so a line never breaks in the middle of a thought.
+  function setLines(node, text) {
+    node.textContent = '';
+    for (const part of text.match(/[^.!?]+[.!?]*/g) || [text]) {
+      const t = part.trim();
+      if (!t) continue;
+      if (node.firstChild) node.appendChild(document.createTextNode(' ')); // read and copied as separate sentences
+      node.appendChild(el('span', { class: 'ln', text: t }));
+    }
+  }
+  function showBubble(text, kind, ms) {
+    setLines(sayText, text); sayEl.setAttribute('data-kind', kind); sayEl.setAttribute('data-on', 'true');
+    clearTimeout(sayTimer);
+    sayTimer = setTimeout(() => { sayEl.setAttribute('data-on', 'false'); }, ms);
+  }
+  // Read aloud by the chosen character: the device's Korean voice, at that character's pitch and pace.
+  function speak(text) {
+    if (!state.sound) return;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      const v = voiceOf(), u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ko-KR'; u.pitch = v.pitch; u.rate = v.rate;
+      const ko = synth.getVoices().filter(x => /^ko([-_]|$)/i.test(x.lang));
+      if (ko.length) u.voice = ko[VOICES.indexOf(v) % ko.length];
+      synth.speak(u);
+    } catch (e) { /* speech is optional */ }
+  }
+  // Announcements wait their turn so one sentence is never cut off by the next.
+  // A sentence about a place ahead is dropped if that place is already behind when its turn comes.
+  const sayQueue = [];
+  let sayBusy = false;
+  function say(text, stillTrue) {
+    sayQueue.push({ text, ok: stillTrue });
+    if (sayQueue.length > 3) sayQueue.splice(0, sayQueue.length - 3);
+    if (!sayBusy) pumpSay();
+  }
+  function pumpSay() {
+    let item = sayQueue.shift();
+    while (item && item.ok && !item.ok()) item = sayQueue.shift();
+    if (!item) { sayBusy = false; return; }
+    sayBusy = true;
+    showBubble(item.text, 'voice', 4200);
+    log('아이 기기에서 읽어 줌', '"' + item.text + '"');
+    setTimeout(pumpSay, 2600);
+    speak(item.text);
+  }
+  const flash = text => showBubble(text, 'hint', 2600);
+  // Sentences waiting their turn are dropped once they no longer apply; `now` also clears the one on screen.
+  function hush(now) {
+    sayQueue.length = 0;
+    if (!now) return;
+    clearTimeout(sayTimer); sayEl.setAttribute('data-on', 'false');
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* speech is optional */ }
+  }
+
+  /* ================= trip logic ================= */
+  function setRoute(route, keep, skip) {
+    state.route = route; state.stops = pickStops(route, keep, skip); state.s = 0;
+    state.announced = new Set(state.stops.filter(st => st.held).map(st => st.lm.id));
+    state.passed = new Set(); state.nextDistShown = -1; state.nextKeyShown = '';
+  }
+  function planFromHome(silent) {
+    state.blocked = new Set(); state.trail = []; state.earlier = []; state.arrived = false; state.odo = 0; state.navNote = null;
+    const path = shortest(PLACES.home.node, destPlace().node, state.blocked);
+    setRoute(makeRoute(path.map(id => ({ x: nodes[id].x, y: nodes[id].y })), path));
+    if (!silent) {
+      log('NaviHelper onRouteStarted', '운전석 내비의 목적지 ' + destPlace().name + ' → 아이 기기로 보냄');
+      log('NaviHelper onRoutingCompleted', '순정 내비가 길을 찾음 → 아이 화면에 같은 길을 그림');
+      log('FusedLocation.addProximityAlert()', '그림 자리 ' + state.stops.length + '곳 등록');
+    }
+    renderAll();
+  }
+  function setDest(id) {
+    if (state.gear === 'D' || state.dest === id) return;
+    state.dest = id;
+    $('#dest-school').setAttribute('aria-pressed', String(id === 'school'));
+    $('#dest-grandma').setAttribute('aria-pressed', String(id === 'grandma'));
+    stopPreview(); hush(true);
+    planFromHome(false);
+    snapCam(); draw();
+  }
+  function setGear(g) {
+    if (state.gear === g) return;
+    if (g === 'D') {
+      if (state.arrived || state.s >= state.route.total - 1) planFromHome(true);
+      stopPreview(); setDropper(false); closeRgb();
+      state.gear = 'D';
+      log('CarUxRestrictionsManager.onUxRestrictionsChanged', '주행 시작 → 운전석 화면은 그대로, 아이 화면을 따라가기로');
+      log('FusedLocation.registerFusedLocationCallback()', '차 위치 수신 시작 → 아이 기기로 보냄');
+      const n = remaining(), d = destPlace().name;
+      say(n ? '출발해요. 그림 ' + n + '개를 지나면 ' + d + josa(d, '이에요', '예요') + '.' : '출발해요. ' + d + josa(d, '으로', '로') + ' 가요.');
+    } else {
+      state.gear = 'P';
+      hush(false);
+      log('CarUxRestrictionsManager.onUxRestrictionsChanged', '정차 → 아이 화면의 꾸미기 열림');
+    }
+    renderAll();
+    kick();
+  }
+  function arrive() {
+    state.arrived = true; state.s = state.route.total;
+    for (const st of state.stops) state.passed.add(st.lm.id);
+    log('onDestinationArrived', destPlace().name + ' 도착');
+    say(destPlace().name + '에 도착했어요.');
+    setTimeout(() => { if (state.arrived && state.gear === 'D') setGear('P'); }, 2600);
+  }
+  function advance(dt) {
+    const r = state.route, step = state.speed * dt;
+    state.s = Math.min(r.total, state.s + step); state.odo += step;
+    let changed = false;
+    for (const st of state.stops) {
+      const id = st.lm.id;
+      if (!state.announced.has(id) && state.s >= st.s - 110) {
+        state.announced.add(id);
+        const name = stopLabel(st);
+        log('addProximityAlert 진입 알림', name + ' 앞 110 m');
+        say('곧 ' + name + josa(name, '이', '가') + ' 나와요.', () => !state.passed.has(id));
+        changed = true;
+      }
+      if (!state.passed.has(id) && state.s >= st.s + 8) { state.passed.add(id); changed = true; }
+    }
+    if (changed) { renderStrip(); renderDrive(true); } else renderDrive(false);
+    renderCluster();
+    if (state.s >= r.total - 0.5 && !state.arrived) { arrive(); renderAll(); }
+  }
+  // A road ahead closes: the next bridge, or with 'next' the very next street after the coming corner.
+  function reroute(which) {
+    if (state.gear !== 'D' || state.arrived) return;
+    const r = state.route, pos = at(r, state.s);
+    let j = -1;
+    if (which !== 'next') for (let i = pos.i; i < r.pts.length - 1; i++) { const e = edgeByKey[key(r.ids[i], r.ids[i + 1])]; if (e && e.bridge) { j = i; break; } }
+    if (j < 0 && pos.i < r.pts.length - 1) j = pos.i;
+    if (j < 0) { say('거의 다 왔어요. 길을 바꾸지 않아요.'); return; }
+    const blocked = new Set(state.blocked); blocked.add(key(r.ids[j], r.ids[j + 1]));
+    const path = shortest(r.ids[pos.i], destPlace().node, blocked);
+    if (!path) { say('돌아갈 길이 없어요. 그대로 가요.'); return; }
+    state.blocked = blocked;
+    const here = { x: pos.x, y: pos.y };
+    state.trail = state.trail.concat(r.pts.slice(0, pos.i).map(p => ({ x: p.x, y: p.y })), [here]);
+    // What has been passed stays on today's strip, and what was announced and is still ahead is not announced twice.
+    state.earlier = state.earlier.concat(state.stops.filter(st => state.passed.has(st.lm.id)));
+    const keep = new Set(state.stops.filter(st => state.announced.has(st.lm.id) && !state.passed.has(st.lm.id)).map(st => st.lm.id));
+    setRoute(makeRoute([here].concat(path.map(id => ({ x: nodes[id].x, y: nodes[id].y }))), [null].concat(path)), keep, new Set(state.earlier.map(st => st.lm.id)));
+    state.navNote = { text: '앞길이 막혀 새 길로 안내해요', until: performance.now() + 5200 };
+    log('NaviHelper onReRouteEnded', '순정 내비가 경로를 바꿈 → 아이 화면의 그림 지도 다시 그림');
+    log('FusedLocation.addProximityAlert()', '새 길의 그림 자리 ' + state.stops.length + '곳 등록');
+    const n = remaining(), d = destPlace().name;
+    say('길이 바뀌었어요. ' + (n ? '그림 ' + n + '개를 지나면 ' + d + josa(d, '이에요', '예요') + '.' : '조금만 가면 ' + d + josa(d, '이에요', '예요') + '.'));
+    renderAll();
+  }
+
+  /* ================= pictograms for places without a drawing ================= */
+  function rr(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    rrSub(ctx, x, y, w, h, r);
+  }
+  function rrSub(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function picto(ctx, type, r, ink) {
+    const u = r * 0.55;
+    ctx.save(); ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = Math.max(1.4, r * 0.15); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    switch (type) {
+      case 'home': case 'grandma':
+        ctx.moveTo(-u * 1.1, 0); ctx.lineTo(0, -u * 1.05); ctx.lineTo(u * 1.1, 0);
+        ctx.moveTo(-u * 0.75, 0); ctx.lineTo(-u * 0.75, u); ctx.lineTo(u * 0.75, u); ctx.lineTo(u * 0.75, 0); break;
+      case 'school':
+        ctx.rect(-u, -u * 0.15, 2 * u, u * 1.15); ctx.moveTo(0, -u * 0.15); ctx.lineTo(0, -u * 1.15); ctx.lineTo(u * 0.65, -u * 0.85); ctx.lineTo(0, -u * 0.55); break;
+      case 'shop':
+        ctx.rect(-u, -u * 0.1, 2 * u, u * 1.1); ctx.moveTo(-u * 1.15, -u * 0.1); ctx.lineTo(-u * 0.8, -u * 0.9); ctx.lineTo(u * 0.8, -u * 0.9); ctx.lineTo(u * 1.15, -u * 0.1); ctx.closePath(); break;
+      case 'bakery':
+        ctx.ellipse(0, 0, u * 1.1, u * 0.7, 0, 0, Math.PI * 2); ctx.moveTo(-u * 0.4, -u * 0.35); ctx.lineTo(-u * 0.15, u * 0.3); ctx.moveTo(u * 0.15, -u * 0.35); ctx.lineTo(u * 0.4, u * 0.3); break;
+      case 'bridge':
+        ctx.moveTo(-u * 1.2, u * 0.5); ctx.lineTo(u * 1.2, u * 0.5); ctx.moveTo(-u, u * 0.5); ctx.quadraticCurveTo(0, -u * 1.3, u, u * 0.5); break;
+      case 'fire':
+        ctx.moveTo(u * 0.1, -u * 1.2); ctx.bezierCurveTo(u * 0.2, -u * 0.5, u * 0.98, -u * 0.2, u * 0.92, u * 0.45);
+        ctx.bezierCurveTo(u * 0.88, u * 0.92, u * 0.45, u * 1.15, 0, u * 1.15); ctx.bezierCurveTo(-u * 0.5, u * 1.15, -u * 0.92, u * 0.85, -u * 0.92, u * 0.35);
+        ctx.bezierCurveTo(-u * 0.92, -u * 0.05, -u * 0.66, -u * 0.3, -u * 0.52, -u * 0.6); ctx.bezierCurveTo(-u * 0.46, -u * 0.3, -u * 0.32, -u * 0.18, -u * 0.2, -u * 0.16);
+        ctx.bezierCurveTo(-u * 0.26, -u * 0.6, -u * 0.12, -u * 0.98, u * 0.1, -u * 1.2);
+        ctx.moveTo(u * 0.04, u * 0.34); ctx.bezierCurveTo(u * 0.42, u * 0.62, u * 0.36, u * 1.0, 0, u * 1.12); ctx.bezierCurveTo(-u * 0.34, u * 1.0, -u * 0.3, u * 0.66, u * 0.04, u * 0.34); break;
+      case 'tree':
+        ctx.arc(0, -u * 0.35, u * 0.8, 0, Math.PI * 2); ctx.moveTo(0, u * 0.45); ctx.lineTo(0, u * 1.15); break;
+      case 'play':
+        ctx.moveTo(-u, u); ctx.lineTo(-u * 0.2, -u); ctx.lineTo(u * 0.2, -u); ctx.lineTo(u, u); ctx.moveTo(0, -u); ctx.lineTo(0, u * 0.3); ctx.moveTo(-u * 0.35, u * 0.3); ctx.lineTo(u * 0.35, u * 0.3); break;
+      case 'library':
+        ctx.moveTo(0, -u * 0.6); ctx.lineTo(-u * 1.1, -u * 0.85); ctx.lineTo(-u * 1.1, u * 0.7); ctx.lineTo(0, u * 0.95); ctx.lineTo(u * 1.1, u * 0.7); ctx.lineTo(u * 1.1, -u * 0.85); ctx.closePath(); ctx.moveTo(0, -u * 0.6); ctx.lineTo(0, u * 0.95); break;
+      case 'market':
+        ctx.moveTo(-u * 1.1, 0); ctx.lineTo(0, -u); ctx.lineTo(u * 1.1, 0); ctx.closePath(); ctx.moveTo(-u * 0.8, 0); ctx.lineTo(-u * 0.8, u); ctx.moveTo(u * 0.8, 0); ctx.lineTo(u * 0.8, u); break;
+      case 'gas':
+        ctx.rect(-u * 0.8, -u, u * 1.1, u * 2); ctx.moveTo(u * 0.3, -u * 0.3); ctx.lineTo(u * 0.9, -u * 0.3); ctx.lineTo(u * 0.9, u * 0.6); break;
+      case 'post':
+        ctx.rect(-u * 1.1, -u * 0.7, u * 2.2, u * 1.4); ctx.moveTo(-u * 1.1, -u * 0.7); ctx.lineTo(0, u * 0.1); ctx.lineTo(u * 1.1, -u * 0.7); break;
+      case 'flower':
+        for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5 - Math.PI / 2, cx = Math.cos(a) * u * 0.75, cy = Math.sin(a) * u * 0.75; ctx.moveTo(cx + u * 0.4, cy); ctx.arc(cx, cy, u * 0.4, 0, Math.PI * 2); } break;
+      case 'car':
+        ctx.rect(-u * 1.1, -u * 0.55, u * 2.2, u * 0.95); ctx.moveTo(-u * 0.6, -u * 0.55); ctx.lineTo(-u * 0.35, -u * 1.05); ctx.lineTo(u * 0.35, -u * 1.05); ctx.lineTo(u * 0.6, -u * 0.55); break;
+      default:
+        ctx.arc(0, 0, u * 0.6, 0, Math.PI * 2);
+    }
+    ctx.stroke();
+    if (type === 'car') { ctx.beginPath(); ctx.arc(-u * 0.6, u * 0.55, u * 0.28, 0, Math.PI * 2); ctx.arc(u * 0.6, u * 0.55, u * 0.28, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
+
+  /* ================= colours from the display's palette ================= */
+  const unit = $('#unit');
+  let COL = {}, FAMILY = 'sans-serif';
+  function readColors() {
+    const cs = getComputedStyle(unit), g = n => cs.getPropertyValue(n).trim();
+    COL = {
+      land: g('--m-land'), block: g('--m-block'), park: g('--m-park'), parkDot: g('--m-park-dot'), water: g('--m-water'), waterLine: g('--m-water-line'),
+      bldg: g('--m-bldg'), bldg2: g('--m-bldg2'), road: g('--m-road'), roadEdge: g('--m-road-edge'), roadMark: g('--m-road-mark'), bridge: g('--m-bridge'),
+      route: g('--m-route'), routeEdge: g('--m-route-edge'), passed: g('--m-passed'), label: g('--m-label'), labelBg: g('--m-label-bg'), text: g('--m-text'),
+      badge: g('--m-badge'), badgeInk: g('--m-badge-ink'), halo: g('--m-halo'), warn: g('--m-warn'),
+      sticker: g('--paper'), stickerEdge: g('--paper-edge'), shadow: g('--a-shadow'), fill: g('--a-fill'), line: g('--a-line')
+    };
+    FAMILY = getComputedStyle(document.body).fontFamily;
+  }
+  // Both screens open in the light theme whatever theme the viewer uses; the dark theme is one press away.
+  function applyMode() {
+    const night = state.nightOverride === true;
+    unit.setAttribute('data-mode', night ? 'night' : 'day');
+    const b = $('#btn-night');
+    b.setAttribute('aria-pressed', String(night)); b.setAttribute('aria-label', night ? '라이트 테마로 바꾸기' : '다크 테마로 바꾸기');
+    setIcon(b, night ? 'sun' : 'moon');
+    readColors(); renderAll();
+  }
+
+  /* ================= map drawing ================= */
+  const mapCv = $('#map');
+  const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let DPR = 1;
+  // Stickers are smaller on a small map, so they do not crowd it.
+  const stickerSize = (w, driving, h) => (driving ? (h < 280 ? 48 : 60) : (w < 430 || h < 280 ? 36 : 46));
+  function camTarget(w, h) {
+    if (!w || !h) return state.cam;
+    let x, y, k;
+    if (state.gear === 'D' && !reduceMotion()) {
+      const p = at(state.route, state.s);
+      x = p.x; y = p.y; k = clamp(w / 1050, 0.45, 0.8);
+    } else {
+      // Frame today's trip: both ends, every place on the way, and room for the stickers and their labels.
+      const S = stickerSize(w, false, h), padX = S / 2 + 34, padT = S / 2 + 24, padB = S / 2 + 40;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const q of [PLACES.home, destPlace()].concat(state.stops.map(st => st.lm), state.route.pts, state.trail)) {
+        x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+      }
+      k = Math.min((w - 2 * padX) / Math.max(1, x1 - x0), (h - padT - padB) / Math.max(1, y1 - y0), 0.5);
+      x = (x0 + x1) / 2; y = (y0 + y1) / 2 - (padT - padB) / (2 * k);
+    }
+    // Never look past the edge of the town.
+    const hw = w / (2 * k), hh = h / (2 * k);
+    x = hw * 2 >= BOUNDS.x1 - BOUNDS.x0 ? (BOUNDS.x0 + BOUNDS.x1) / 2 : clamp(x, BOUNDS.x0 + hw, BOUNDS.x1 - hw);
+    y = hh * 2 >= BOUNDS.y1 - BOUNDS.y0 ? (BOUNDS.y0 + BOUNDS.y1) / 2 : clamp(y, BOUNDS.y0 + hh, BOUNDS.y1 - hh);
+    return { x, y, k };
+  }
+  // A small, fixed tilt per place so stickers look stuck on by hand.
+  function tilt(k) { let h = 0; for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) | 0; return (((h >>> 0) % 1000) / 1000 - 0.5) * 0.17; }
+  function thumbCanvas(slotKey, type, px) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const d = slotDrawing(slotKey);
+    const c = el('canvas', { class: 'th' + (type === 'bg' ? ' bg' : (d ? '' : ' p')), width: Math.round(px * dpr), height: Math.round(px * dpr), 'aria-hidden': 'true' });
+    const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+    if (type === 'bg') {
+      ctx.fillStyle = slotKey === 'bg:park' ? COL.park : slotKey === 'bg:water' ? COL.water : COL.bldg; ctx.fillRect(0, 0, px, px);
+      if (d) { ctx.globalAlpha = 0.6; ctx.fillStyle = ctx.createPattern(d.tile, 'repeat'); ctx.save(); ctx.scale(0.5, 0.5); ctx.fillRect(0, 0, px * 2, px * 2); ctx.restore(); ctx.globalAlpha = 1; }
+    } else if (d) { const p = px * 0.1; ctx.drawImage(d.canvas, p, p, px - 2 * p, px - 2 * p); }
+    else { ctx.translate(px / 2, px / 2); picto(ctx, type, px * 0.34, COL.badgeInk); }
+    return c;
+  }
+  function softShadow(ctx, blur, dy) { ctx.shadowColor = COL.shadow; ctx.shadowBlur = blur * DPR; ctx.shadowOffsetY = dy * DPR; }
+  function noShadow(ctx) { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; }
+  function drawItem(ctx, x, y, slotKey, type, label, o) {
+    const d = slotDrawing(slotKey), S = o.size;
+    let scale = 1, rot = d ? tilt(slotKey) : 0;
+    if (state.pop && state.pop.key === slotKey) {
+      const t = clamp((performance.now() - state.pop.t0) / 440, 0, 1), e = 1 - Math.pow(1 - t, 3);
+      scale = 1.5 - 0.5 * e; rot += (1 - e) * 0.3;
+    }
+    ctx.save(); ctx.globalAlpha = o.faded ? 0.42 : 1;
+    let cy = y;
+    if (o.lift) {
+      cy = y - S * 0.8;
+      ctx.strokeStyle = COL.badgeInk; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, cy + (d ? S / 2 : S * 0.34)); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = COL.badgeInk; ctx.fill();
+    }
+    const half = d ? S / 2 : S * 0.34;
+    ctx.translate(x, cy);
+    if (d) {
+      ctx.save(); ctx.rotate(rot); ctx.scale(scale, scale);
+      softShadow(ctx, 10, 3);
+      rr(ctx, -S / 2, -S / 2, S, S, S * 0.22); ctx.fillStyle = COL.sticker; ctx.fill();
+      noShadow(ctx);
+      const p = S * 0.1; ctx.drawImage(d.canvas, -S / 2 + p, -S / 2 + p, S - 2 * p, S - 2 * p);
+      if (o.ring) { rr(ctx, -S / 2 - 4, -S / 2 - 4, S + 8, S + 8, S * 0.22 + 4); ctx.strokeStyle = COL.route; ctx.lineWidth = 3; ctx.stroke(); }
+      ctx.restore();
+    } else {
+      softShadow(ctx, 6, 2);
+      ctx.beginPath(); ctx.arc(0, 0, half, 0, Math.PI * 2); ctx.fillStyle = COL.badge; ctx.fill();
+      noShadow(ctx);
+      picto(ctx, type, half * 0.92, COL.badgeInk);
+      if (o.ring) { ctx.beginPath(); ctx.arc(0, 0, half + 4, 0, Math.PI * 2); ctx.strokeStyle = COL.route; ctx.lineWidth = 3; ctx.stroke(); }
+      else if (o.invite) { ctx.save(); ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(0, 0, half + 4, 0, Math.PI * 2); ctx.strokeStyle = COL.route; ctx.lineWidth = 1.6; ctx.stroke(); ctx.restore(); }
+    }
+    if (label) {
+      const fs = o.font; ctx.font = (o.ring ? '700 ' : '500 ') + fs + 'px ' + FAMILY;
+      const tw = ctx.measureText(label).width, pw = tw + 14, ph = fs + 9, py = half + 6;
+      softShadow(ctx, 4, 1);
+      rr(ctx, -pw / 2, py, pw, ph, Math.min(8, ph / 2)); ctx.fillStyle = o.dest ? COL.route : COL.labelBg; ctx.fill();
+      noShadow(ctx);
+      ctx.fillStyle = o.dest ? COL.routeEdge : COL.label; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(label, 0, py + ph / 2 + 0.5);
+    }
+    ctx.restore();
+    state.hit.push({ key: slotKey, x, y: cy, r: half + 8 });
+  }
+  function drawCar(ctx, x, y, heading, driving) {
+    const d = slotDrawing('car'), Rr = driving ? 25 : 19;
+    ctx.save(); ctx.translate(x, y);
+    if (driving) { ctx.beginPath(); ctx.arc(0, 0, Rr + 15, 0, Math.PI * 2); ctx.fillStyle = COL.halo; ctx.fill(); }
+    ctx.save(); ctx.rotate(heading); ctx.beginPath(); ctx.moveTo(Rr + 10, 0); ctx.lineTo(Rr - 3, -8); ctx.lineTo(Rr - 3, 8); ctx.closePath(); ctx.fillStyle = COL.route; ctx.fill(); ctx.restore();
+    softShadow(ctx, 9, 3);
+    ctx.beginPath(); ctx.arc(0, 0, Rr, 0, Math.PI * 2); ctx.fillStyle = d ? COL.sticker : COL.route; ctx.fill();
+    noShadow(ctx);
+    ctx.lineWidth = 3; ctx.strokeStyle = d ? COL.route : COL.routeEdge; ctx.stroke();
+    if (d) { const q = Rr * 0.72; ctx.drawImage(d.canvas, -q, -q, q * 2, q * 2); }
+    else { ctx.rotate(heading); ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -6); ctx.lineTo(-2, 0); ctx.lineTo(-5, 6); ctx.closePath(); ctx.fillStyle = COL.routeEdge; ctx.fill(); }
+    ctx.restore();
+    state.hit.push({ key: 'car', x, y, r: Rr + 6 });
+  }
+  function draw() {
+    const w = mapCv.clientWidth, h = mapCv.clientHeight;
+    if (!w || !h) return;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const pw = Math.round(w * DPR), ph = Math.round(h * DPR);
+    if (mapCv.width !== pw || mapCv.height !== ph) { mapCv.width = pw; mapCv.height = ph; }
+    const ctx = mapCv.getContext('2d');
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = COL.land; ctx.fillRect(0, 0, w, h);
+    const cam = state.cam, k = cam.k;
+    const pat = slot => { const d = slotDrawing(slot); return d ? ctx.createPattern(d.tile, 'repeat') : null; };
+    const overlay = p => { if (!p) return; ctx.save(); ctx.globalAlpha = 0.55; ctx.fillStyle = p; ctx.fill(); ctx.restore(); };
+    const quad = q => { ctx.moveTo(q[0].x, q[0].y); for (let i = 1; i < 4; i++) ctx.lineTo(q[i].x, q[i].y); ctx.closePath(); };
+
+    ctx.save(); ctx.translate(w / 2, h / 2); ctx.scale(k, k); ctx.translate(-cam.x, -cam.y);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    // Only what is in view is drawn.
+    const vx0 = cam.x - w / (2 * k) - 30, vx1 = cam.x + w / (2 * k) + 30, vy0 = cam.y - h / (2 * k) - 30, vy1 = cam.y + h / (2 * k) + 30;
+    const seen = b => b.x1 >= vx0 && b.x0 <= vx1 && b.y1 >= vy0 && b.y0 <= vy1;
+    const vBlocks = blocks.filter(q => seen(q.box)), vParks = parks.filter(q => seen(q.box));
+    const vBldg = buildings.filter(b => b.x + b.w >= vx0 && b.x <= vx1 && b.y + b.h + 4 >= vy0 && b.y <= vy1);
+    // city blocks, slightly lifted from the land so the streets read as streets
+    ctx.beginPath(); for (const q of vBlocks) quad(q);
+    ctx.fillStyle = COL.block; ctx.fill(); ctx.strokeStyle = COL.block; ctx.lineWidth = 12; ctx.stroke();
+    // parks
+    ctx.beginPath(); for (const q of vParks) quad(q);
+    ctx.fillStyle = COL.park; ctx.fill();
+    ctx.beginPath(); for (const t of trees) { if (t.x < vx0 || t.x > vx1 || t.y < vy0 || t.y > vy1) continue; ctx.moveTo(t.x + t.r, t.y); ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2); }
+    ctx.fillStyle = COL.parkDot; ctx.fill();
+    ctx.beginPath(); for (const q of vParks) quad(q); overlay(pat('bg:park'));
+    // river
+    ctx.beginPath(); river.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath();
+    ctx.fillStyle = COL.water; ctx.fill(); overlay(pat('bg:water'));
+    ctx.strokeStyle = COL.waterLine; ctx.lineWidth = 3;
+    const rx0 = Math.floor(Math.max(BOUNDS.x0 - 120, vx0) / 40) * 40, rx1 = Math.min(BOUNDS.x1 + 120, vx1);
+    for (const off of [-24, 22]) {
+      ctx.beginPath();
+      for (let x = rx0; x <= rx1 + 40; x += 40) { const y = riverY(x) + off + 5 * Math.sin(x / 70 + off); if (x === rx0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    // buildings, with a thin lower edge for depth
+    ctx.beginPath(); for (const b of vBldg) rrSub(ctx, b.x, b.y + 4, b.w, b.h, 7);
+    ctx.fillStyle = COL.bldg2; ctx.fill();
+    ctx.beginPath(); for (const b of vBldg) rrSub(ctx, b.x, b.y, b.w, b.h, 7);
+    ctx.fillStyle = COL.bldg; ctx.fill(); overlay(pat('bg:building'));
+    // roads
+    const line = e => { ctx.moveTo(e.A.x, e.A.y); ctx.lineTo(e.B.x, e.B.y); };
+    ctx.strokeStyle = COL.roadEdge;
+    ctx.beginPath(); for (const e of streets) if (!e.bridge && !e.main) line(e); ctx.lineWidth = 25; ctx.stroke();
+    ctx.beginPath(); for (const e of streets) if (!e.bridge && e.main) line(e); ctx.lineWidth = 33; ctx.stroke();
+    ctx.beginPath(); for (const e of streets) if (e.bridge) line(e); ctx.strokeStyle = COL.bridge; ctx.lineWidth = 38; ctx.stroke();
+    ctx.strokeStyle = COL.road;
+    ctx.beginPath(); for (const e of streets) if (!e.main) line(e); ctx.lineWidth = 18; ctx.stroke();
+    ctx.beginPath(); for (const e of streets) if (e.main) line(e); ctx.lineWidth = 26; ctx.stroke();
+    ctx.save(); ctx.setLineDash([16, 18]); ctx.lineCap = 'butt'; ctx.strokeStyle = COL.roadMark; ctx.lineWidth = 2.2;
+    ctx.beginPath(); for (const e of streets) if (e.main) line(e); ctx.stroke(); ctx.restore();
+    // route: what is behind, then what is ahead
+    const r = state.route, pos = at(r, state.s);
+    const path = pts => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); };
+    const done = state.trail.concat(r.pts.slice(0, pos.i), [pos]);
+    const rw = Math.max(12, 5.2 / k), rc = Math.max(20, 9.4 / k);
+    if (done.length > 1 && (state.s > 0 || state.trail.length)) { path(done); ctx.strokeStyle = COL.passed; ctx.lineWidth = rw; ctx.stroke(); }
+    const ahead = [pos].concat(r.pts.slice(pos.i));
+    if (ahead.length > 1) {
+      path(ahead); ctx.strokeStyle = COL.routeEdge; ctx.lineWidth = rc; ctx.stroke();
+      path(ahead); ctx.strokeStyle = COL.route; ctx.lineWidth = rw; ctx.stroke();
+      if (k >= 0.4) {
+        ctx.strokeStyle = COL.routeEdge; ctx.lineWidth = 2;
+        for (let s = Math.ceil((state.s + 46) / 96) * 96; s < r.total - 40; s += 96) {
+          const p = at(r, s);
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.heading);
+          ctx.beginPath(); ctx.moveTo(-3, -3.6); ctx.lineTo(1.6, 0); ctx.lineTo(-3, 3.6); ctx.stroke(); ctx.restore();
+        }
+      }
+    }
+    ctx.restore();
+
+    const sx = x => (x - cam.x) * k + w / 2, sy = y => (y - cam.y) * k + h / 2;
+    const driving = state.gear === 'D';
+    // street and river names, the way a map prints them
+    if (k >= 0.24) {
+      ctx.font = '500 12px ' + FAMILY; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      for (const n of ROAD_NAMES) {
+        const X = sx(n.x), Y = sy(n.y);
+        if (X < -60 || X > w + 60 || Y < -20 || Y > h + 20) continue;
+        ctx.save(); ctx.translate(X, Y); ctx.rotate(n.rot);
+        ctx.lineWidth = 3; ctx.strokeStyle = COL.road; ctx.strokeText(n.name, 0, 0); ctx.fillStyle = COL.text; ctx.fillText(n.name, 0, 0); ctx.restore();
+      }
+      ctx.fillStyle = COL.text; ctx.fillText(RIVER_NAME.name, sx(RIVER_NAME.x), sy(RIVER_NAME.y));
+    }
+    const base = { size: stickerSize(w, driving, h), font: driving ? 13 : 12 };
+    state.hit = [];
+    for (const bk of state.blocked) {
+      const e = edgeByKey[bk], mx = sx((nodes[e.a].x + nodes[e.b].x) / 2), my = sy((nodes[e.a].y + nodes[e.b].y) / 2);
+      softShadow(ctx, 6, 2);
+      ctx.beginPath(); ctx.arc(mx, my, 12, 0, Math.PI * 2); ctx.fillStyle = COL.warn; ctx.fill();
+      noShadow(ctx);
+      ctx.strokeStyle = COL.sticker; ctx.lineWidth = 3.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(mx - 6, my); ctx.lineTo(mx + 6, my); ctx.stroke();
+    }
+    const picking = !driving && state.tab === 'assign' && !!state.picked;
+    const nextStop = state.stops.find(st => !state.passed.has(st.lm.id));
+    for (const st of state.earlier.concat(state.stops)) {
+      const lm = st.lm, k2 = 'lm:' + lm.id;
+      drawItem(ctx, sx(lm.x), sy(lm.y), k2, lm.type, stopLabel(st), Object.assign({}, base, {
+        lift: lm.type === 'bridge', faded: (state.passed.has(lm.id) || state.earlier.includes(st)) && !state.arrived,
+        ring: state.focus === k2 || (driving && nextStop === st), invite: picking
+      }));
+    }
+    for (const p of [PLACES.home, destPlace()]) {
+      const k2 = 'place:' + p.id;
+      drawItem(ctx, sx(p.x), sy(p.y), k2, p.type, placeLabel(p), Object.assign({}, base, {
+        ring: state.focus === k2 || (driving && !nextStop && p.id === state.dest), dest: p.id === state.dest, invite: picking
+      }));
+    }
+    drawCar(ctx, sx(pos.x), sy(pos.y), pos.heading, driving);
+  }
+  let raf = 0, last = 0;
+  const popping = () => !!state.pop && performance.now() - state.pop.t0 < 460;
+  function frame(t) {
+    const dt = Math.min(0.05, Math.max(0, (t - last) / 1000)); last = t;
+    const moving = state.gear === 'D' && !state.arrived;
+    if (moving && !(demo.on && demo.paused)) advance(dt);
+    const tg = camTarget(mapCv.clientWidth, mapCv.clientHeight), c = state.cam, a = 1 - Math.exp(-dt * 2.6);
+    c.x = lerp(c.x, tg.x, a); c.y = lerp(c.y, tg.y, a); c.k = lerp(c.k, tg.k, a);
+    const settled = Math.abs(c.x - tg.x) < 0.5 && Math.abs(c.y - tg.y) < 0.5 && Math.abs(c.k - tg.k) < 0.002;
+    if (settled) { c.x = tg.x; c.y = tg.y; c.k = tg.k; }
+    if (state.pop && !popping()) state.pop = null;
+    draw();
+    raf = (state.gear === 'D' && !state.arrived) || !settled || popping() ? requestAnimationFrame(frame) : 0;
+  }
+  function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function snapCam() { const tg = camTarget(mapCv.clientWidth, mapCv.clientHeight); state.cam = { x: tg.x, y: tg.y, k: tg.k }; }
+
+  /* ================= panels ================= */
+  const TABS = ['draw', 'assign', 'voice', 'preview'];
+  function setTab(t) {
+    state.tab = t;
+    for (const n of TABS) {
+      $('#tab-' + n).setAttribute('aria-selected', String(n === t));
+      $('#pane-' + n).hidden = state.gear === 'D' || n !== t;
+    }
+    if (t !== 'preview') stopPreview();
+    if (t !== 'draw') { closeRgb(); setDropper(false); }
+    $('#pscroll').scrollTop = 0;
+    if (t === 'draw') paintPad();
+  }
+  function pickDrawing(id) { state.picked = state.picked === id ? null : id; state.confirmDelete = null; renderDrawer(); renderSlots(); if (!raf) draw(); }
+  function renderDrawer() {
+    const box = $('#drawer'); box.textContent = '';
+    for (const d of drawings) {
+      box.appendChild(el('button', { type: 'button', class: 'stk', 'data-id': d.id, 'aria-pressed': String(state.picked === d.id), 'aria-label': d.name + (d.example ? ' (예시 그림)' : ''), title: d.name, onclick: () => pickDrawing(d.id) },
+        [el('img', { src: d.url, alt: '' }), el('span', { text: d.name }), d.example ? el('em', { text: '예시' }) : null]));
+    }
+    const mine = drawings.filter(d => !d.example).length;
+    $('#drawer-note').textContent = mine ? '내가 그린 것 ' + mine + '장' : '예시로 먼저 붙여 볼 수 있어요';
+    const acts = $('#drawer-actions'); acts.textContent = '';
+    const cur = state.picked ? byId(state.picked) : null;
+    if (cur && !cur.example) {
+      // Deleting a drawing cannot be taken back, so it asks once.
+      if (state.confirmDelete === cur.id) {
+        acts.appendChild(el('div', { class: 'confirm' }, [el('span', { text: '이 그림을 지울까요?' }),
+          el('button', { type: 'button', class: 'btn-s', id: 'delete-no', onclick: () => { state.confirmDelete = null; renderDrawer(); } }, ['그대로 두기']),
+          el('button', { type: 'button', class: 'btn-s danger', id: 'delete-yes', onclick: () => removeDrawing(cur.id) }, ['지우기'])]));
+      } else {
+        acts.appendChild(el('button', { type: 'button', class: 'btn-s', id: 'delete-ask', onclick: () => { state.confirmDelete = cur.id; renderDrawer(); } }, [icon('trash', 18), '고른 그림 지우기']));
+      }
+    } else state.confirmDelete = null;
+    acts.hidden = !acts.children.length;
+  }
+  function removeDrawing(id) {
+    const i = drawings.findIndex(d => d.id === id);
+    if (i < 0 || drawings[i].example) return;
+    drawings.splice(i, 1);
+    for (const k in assign) if (assign[k] === id) delete assign[k];
+    state.picked = null; state.confirmDelete = null; save(); renderAll();
+  }
+  function slotList() {
+    const route = [{ key: 'car', type: 'car', name: '내 차' }, { key: 'place:home', type: 'home', name: '우리 집' }, { key: 'place:' + state.dest, type: destPlace().type, name: destPlace().name }];
+    for (const st of state.earlier.concat(state.stops)) route.push({ key: 'lm:' + st.lm.id, type: st.lm.type, name: st.lm.name });
+    const bg = [{ key: 'bg:building', type: 'bg', name: '건물 무늬' }, { key: 'bg:park', type: 'bg', name: '공원 무늬' }, { key: 'bg:water', type: 'bg', name: '물 무늬' }];
+    return { route, bg };
+  }
+  function toggleAssign(slotKey) {
+    if (state.gear === 'D') return;
+    if (!state.picked) { setTab('assign'); renderAll(); flash('먼저 내 그림에서 그림을 하나 골라요.'); return; }
+    if (assign[slotKey] === state.picked) delete assign[slotKey];
+    else { assign[slotKey] = state.picked; if (!slotKey.startsWith('bg:') && !reduceMotion()) state.pop = { key: slotKey, t0: performance.now() }; }
+    save(); renderAll(); kick();
+  }
+  function renderSlots() {
+    const lists = slotList();
+    for (const [boxId, list] of [['#slots-route', lists.route], ['#slots-bg', lists.bg]]) {
+      const box = $(boxId); box.textContent = '';
+      for (const s of list) {
+        const d = slotDrawing(s.key), on = !!state.picked && assign[s.key] === state.picked;
+        const trail = el('span', { class: 'trail' }, state.picked ? [icon(on ? 'check' : 'plus', 18)] : []);
+        box.appendChild(el('button', { type: 'button', class: 'slot', 'data-slot': s.key, 'aria-pressed': String(on), onclick: () => toggleAssign(s.key) },
+          [thumbCanvas(s.key, s.type, 40), el('span', {}, [el('b', { text: s.name }), el('small', { text: d ? d.name + (d.example ? ' · 예시' : '') : (s.type === 'bg' ? '기본 색' : '기본 그림') })]), trail]));
+      }
+    }
+  }
+  function journeyItems() {
+    const items = [{ key: 'place:home', type: 'home', name: placeLabel(PLACES.home) }];
+    for (const st of state.earlier) items.push({ key: 'lm:' + st.lm.id, type: st.lm.type, name: stopLabel(st), stop: st, earlier: true });
+    for (const st of state.stops) items.push({ key: 'lm:' + st.lm.id, type: st.lm.type, name: stopLabel(st), stop: st });
+    items.push({ key: 'place:' + state.dest, type: destPlace().type, name: placeLabel(destPlace()), dest: true });
+    return items;
+  }
+  function sumText() {
+    const n = remaining(), d = destPlace().name;
+    if (state.arrived) return d + '에 도착했어요.';
+    return n ? '그림 ' + n + '개를 지나면 ' + d + josa(d, '이에요', '예요') + '.' : '조금만 가면 ' + d + josa(d, '이에요', '예요') + '.';
+  }
+  function renderPreview() {
+    $('#preview-sum').textContent = sumText();
+    const ol = $('#preview-list'); ol.textContent = '';
+    for (const it of journeyItems()) ol.appendChild(el('li', { 'data-focus': String(state.focus === it.key) }, [thumbCanvas(it.key, it.type, 40), el('span', { text: it.name })]));
+  }
+  // The strip never scrolls or slides while driving: it changes only when a drawing has been passed.
+  function renderStrip() {
+    const ol = $('#strip'); ol.textContent = '';
+    const items = journeyItems(), next = state.stops.find(st => !state.passed.has(st.lm.id));
+    for (const it of items) {
+      let st = '';
+      if (it.stop) st = it.earlier || state.passed.has(it.stop.lm.id) ? 'passed' : (it.stop === next && state.gear === 'D' ? 'next' : '');
+      else if (it.dest) st = (state.gear === 'D' && !next) || state.arrived ? 'next' : '';
+      else st = state.gear === 'D' || state.s > 30 || state.trail.length ? 'passed' : '';
+      ol.appendChild(el('li', { 'data-state': st }, [thumbCanvas(it.key, it.type, 40), el('span', { text: it.name })]));
+    }
+  }
+  function renderDrive(force) {
+    if (state.gear !== 'D') return;
+    const next = state.stops.find(st => !state.passed.has(st.lm.id));
+    const target = next ? { key: 'lm:' + next.lm.id, type: next.lm.type, name: stopLabel(next), s: next.s } : { key: 'place:' + state.dest, type: destPlace().type, name: placeLabel(destPlace()), s: state.route.total };
+    const d = Math.max(0, Math.round((target.s - state.s) / 50) * 50);
+    if (!force && d === state.nextDistShown) return;
+    state.nextDistShown = d;
+    const stamp = target.key + '|' + (assign[target.key] || '');
+    if (force || stamp !== state.nextKeyShown) {
+      state.nextKeyShown = stamp;
+      const holder = $('#next-thumb'); holder.textContent = ''; holder.appendChild(thumbCanvas(target.key, target.type, 116));
+      $('#next-name').textContent = target.name;
+    }
+    $('#next-lbl').textContent = state.arrived ? '도착했어요' : (next ? '다음 그림' : '이제 곧');
+    $('#next-dist').textContent = state.arrived ? '도착' : (d > 0 ? '약 ' + d + '\u00A0m 앞' : '바로 앞');
+    $('#drive-sum').textContent = sumText();
+  }
+  function renderCluster() {
+    const moving = state.gear === 'D' && !state.arrived;
+    $('#g-p').setAttribute('data-on', String(state.gear === 'P'));
+    $('#g-d').setAttribute('data-on', String(state.gear === 'D'));
+    const r = state.route, left = Math.max(0, r.total - state.s);
+    const km = left >= 1000 ? (left / 1000).toFixed(1) + '\u00A0km' : Math.round(left / 10) * 10 + '\u00A0m';
+    const mins = Math.max(1, Math.round(left / 11.7 / 60));
+    let ic = 'park', turn = '정차 중', sub = '출발 전';
+    if (state.arrived) { ic = 'flag'; turn = '도착'; sub = destPlace().name; }
+    else if (state.gear === 'D') {
+      ic = 'arrowUp'; turn = '직진'; sub = '목적지까지';
+      const pos = at(r, state.s);
+      for (let i = pos.i; i < r.pts.length - 1; i++) {
+        const a = r.pts[i - 1], b = r.pts[i], c = r.pts[i + 1];
+        const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x), dot = (b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y);
+        const ang = Math.atan2(cross, dot);
+        if (Math.abs(ang) > 0.45) {
+          const dd = Math.max(0, Math.round((r.cum[i] - state.s) / 50) * 50);
+          ic = ang > 0 ? 'arrowRight' : 'arrowLeft'; turn = ang > 0 ? '우회전' : '좌회전'; sub = dd ? dd + '\u00A0m 앞' : '곧';
+          break;
+        }
+      }
+    }
+    if (ic !== state.turnIc) { state.turnIc = ic; setIcon($('#turn-ic'), ic, 22); }
+    $('#turn').textContent = turn; $('#turn-d').textContent = sub;
+    const note = state.navNote && !state.arrived && performance.now() < state.navNote.until ? state.navNote.text : '';
+    $('#trip').textContent = state.arrived ? destPlace().name + '에 도착했어요' : (note || destPlace().name + '까지 ' + km + ' · 약\u00A0' + mins + '분');
+    const now = performance.now();
+    if (!moving) { $('#speed').textContent = '0'; state.speedAt = 0; }
+    else if (now - state.speedAt > 800) { state.speedAt = now; $('#speed').textContent = String(41 + Math.round(3 * Math.sin(state.odo / 120))); }
+    // The clock runs with the trip: about a minute for every 700 m driven.
+    const m = 12 + Math.floor(state.odo / 700);
+    $('#clock').textContent = '오전 8:' + String(m).padStart(2, '0');
+  }
+  function renderMode() {
+    const driving = state.gear === 'D';
+    $('#tabs').hidden = driving; $('#drive').hidden = !driving;
+    for (const n of TABS) $('#pane-' + n).hidden = driving || n !== state.tab;
+    $('#mode').setAttribute('data-lock', String(driving));
+    // The stage shows the sheet of paper while drawing and the map the rest of the time.
+    const onPaper = !driving && state.tab === 'draw';
+    $('#appbody').setAttribute('data-step', driving ? 'drive' : state.tab);
+    if (onPaper !== state.onPaper) {
+      state.onPaper = onPaper;
+      $('#drawwrap').hidden = !onPaper; $('#mapwrap').hidden = onPaper;
+      if (onPaper) { paintPad(); renderPen(); } else snapCam();
+    }
+    $('#mode-t').textContent = driving ? '주행 중 · 보기 전용' : '정차 중 · 꾸미기';
+    $('#dest-school').disabled = driving; $('#dest-grandma').disabled = driving;
+    setIcon($('#go-ic'), driving ? 'stop' : 'car');
+    $('#go-t').textContent = driving ? '멈추기' : '출발하기';
+    $('#btn-go').setAttribute('aria-pressed', String(driving));
+    $('#btn-block').disabled = !driving || state.arrived;
+  }
+  function renderAll() {
+    renderMode(); renderDrawer(); renderSlots(); renderVoices(); renderPreview(); renderStrip(); renderDrive(true); renderCluster();
+    if (!raf) draw();
+  }
+
+  /* ================= preview stepping ================= */
+  let previewTimer = 0;
+  function setPreviewBtn(on) { setIcon($('#preview-ic'), on ? 'pause' : 'play', 16); $('#preview-t').textContent = on ? '멈추기' : '차례로 보기'; }
+  function stopPreview() { clearInterval(previewTimer); previewTimer = 0; if (state.focus) { state.focus = null; renderPreview(); if (!raf) draw(); } setPreviewBtn(false); }
+  function playPreview() {
+    if (previewTimer) { stopPreview(); return; }
+    const items = journeyItems(); let i = 0;
+    const step = () => {
+      if (i >= items.length) { stopPreview(); return; }
+      state.focus = items[i].key; i++;
+      renderPreview(); if (!raf) draw();
+    };
+    setPreviewBtn(true);
+    step(); previewTimer = setInterval(step, 900);
+  }
+
+  /* ================= drawing pad: pens, colours, size ================= */
+  const pad = $('#pad'), loupe = $('#loupe');
+  const hex = (r, g, b) => '#' + [r, g, b].map(v => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+  const rgbOf = c => { const m = /^#([0-9a-f]{6})$/i.exec(String(c).trim()), n = m ? parseInt(m[1], 16) : 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const isPreset = c => PALETTE.some(p => p[0] === c);
+  const penWidth = () => state.pen.sizes[state.pen.tool] * SIZE_UNIT;
+  function paintPad() {
+    const w = pad.clientWidth; if (!w) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), px = Math.round(w * dpr);
+    if (pad.width !== px || pad.height !== px) { pad.width = px; pad.height = px; }
+    const ctx = pad.getContext('2d'); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, px, px);
+    paintStrokes(ctx, state.strokes.concat(state.stroke ? [state.stroke] : []), px, 0, 0);
+    $('#pad-hint').setAttribute('data-off', String(!!(state.strokes.length || state.stroke)));
+  }
+  const padPoint = e => { const b = pad.getBoundingClientRect(); return [clamp((e.clientX - b.left) / b.width, 0, 1), clamp((e.clientY - b.top) / b.height, 0, 1)]; };
+
+  // The pens, each drawn with its own tip; the tip shows the colour in hand.
+  const PEN_ART = {
+    hl: '<rect x="8" y="2.5" width="8" height="11" rx="2"/><path d="M8 13.5h8v3.2l-8 4.6z" style="fill:var(--c)"/>',
+    sign: '<rect x="9.5" y="2.5" width="5" height="12" rx="1.6"/><path d="M9.5 14.5h5L12 21.3z" style="fill:var(--c)"/>',
+    name: '<rect x="8" y="2.5" width="8" height="10.5" rx="2"/><path d="M9.6 13h4.8v4.2a2.4 2.4 0 0 1-4.8 0z" style="fill:var(--c)"/>',
+    brush: '<rect x="10.6" y="2.5" width="2.8" height="9" rx="1.4"/><path d="M12 11.5c2.8 2.2 3 6.4 0 10-3-3.6-2.8-7.8 0-10z" style="fill:var(--c)"/>'
+  };
+  for (const t of TOOL_ORDER) {
+    const art = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    for (const [k, v] of [['viewBox', '0 0 24 24'], ['fill', 'none'], ['stroke', 'currentColor'], ['stroke-width', '1.6'], ['stroke-linejoin', 'round'], ['aria-hidden', 'true']]) art.setAttribute(k, v);
+    art.innerHTML = PEN_ART[t];
+    $('#pens').appendChild(el('button', { type: 'button', class: 'pen', 'data-tool': t, 'aria-pressed': 'false', onclick: () => setTool(t) }, [art, TOOLS[t].name]));
+  }
+  for (const [c, name] of PALETTE) {
+    $('#swatches').insertBefore(el('button', { type: 'button', class: 'sw', style: '--c:' + c, 'data-c': c, 'aria-label': name, 'aria-pressed': 'false', onclick: () => { closeRgb(); setColor(c); } }), $('#mix'));
+  }
+  function setTool(t) { if (TOOLS[t]) { state.pen.tool = t; renderPen(); } }
+  // A colour that is not one of the nine ready-made ones is kept as "my colour" on the mixing button.
+  function setColor(c) {
+    state.pen.c = String(c).toUpperCase();
+    if (!isPreset(state.pen.c)) state.pen.custom = state.pen.c;
+    renderPen();
+  }
+  function setSize(v) { state.pen.sizes[state.pen.tool] = clamp(Math.round(v) || 1, 1, 30); renderPen(); }
+  function renderPen() {
+    const c = state.pen.c, t = state.pen.tool, v = state.pen.sizes[t], [r, g, b] = rgbOf(c);
+    for (const n of $('#pens').children) n.setAttribute('aria-pressed', String(n.getAttribute('data-tool') === t));
+    for (const n of $('#swatches').children) n.setAttribute('aria-pressed', String(n.getAttribute('data-c') === c));
+    const mix = $('#mix');
+    mix.style.setProperty('--c', state.pen.custom); mix.setAttribute('aria-pressed', String(!isPreset(c)));
+    $('#pane-draw').style.setProperty('--c', c);
+    $('#size').value = v; $('#size-n').textContent = v;
+    const dot = $('#size-dot'), px = clamp(v * SIZE_UNIT * (pad.clientWidth || 240), 2, 28);
+    dot.style.width = dot.style.height = px.toFixed(1) + 'px';
+    $('#rgb-txt').textContent = 'RGB ' + r + ', ' + g + ', ' + b;
+    // Each slider's track shows where it leads: the colour with that one value at 0 on the left and 255 on the right.
+    const channel = (k, val, from, to) => {
+      const s = $('#rgb-' + k), n = $('#rgb-' + k + 'n');
+      s.value = val; s.style.setProperty('--track', 'linear-gradient(to right, ' + from + ', ' + to + ')');
+      if (document.activeElement !== n) n.value = val;
+    };
+    channel('r', r, hex(0, g, b), hex(255, g, b)); channel('g', g, hex(r, 0, b), hex(r, 255, b)); channel('b', b, hex(r, g, 0), hex(r, g, 255));
+  }
+
+  // Mixing a colour from red, green and blue, each from 0 to 255.
+  function openRgb() { setDropper(false); $('#rgb').hidden = false; $('#mix').setAttribute('aria-expanded', 'true'); }
+  function closeRgb() { $('#rgb').hidden = true; $('#mix').setAttribute('aria-expanded', 'false'); }
+  $('#mix').addEventListener('click', () => {
+    if (!$('#rgb').hidden) { closeRgb(); return; }
+    if (isPreset(state.pen.c)) setColor(state.pen.custom);
+    openRgb();
+  });
+  $('#rgb-close').addEventListener('click', closeRgb);
+  for (const k of ['r', 'g', 'b']) for (const id of ['#rgb-' + k, '#rgb-' + k + 'n']) {
+    $(id).addEventListener('input', e => {
+      const cur = rgbOf(state.pen.c);
+      cur['rgb'.indexOf(k)] = clamp(parseInt(e.target.value, 10) || 0, 0, 255);
+      setColor(hex(cur[0], cur[1], cur[2]));
+    });
+    $(id).addEventListener('change', e => { e.target.value = rgbOf(state.pen.c)['rgb'.indexOf(k)]; });
+  }
+  $('#size').addEventListener('input', e => setSize(parseInt(e.target.value, 10)));
+  $('#size-down').addEventListener('click', () => setSize(state.pen.sizes[state.pen.tool] - 1));
+  $('#size-up').addEventListener('click', () => setSize(state.pen.sizes[state.pen.tool] + 1));
+
+  // The eyedropper takes the colour under the finger on the paper, as it looks on screen.
+  let sampled = null;
+  function pixel(canvas, fx, fy, under) {
+    const x = clamp(Math.floor(fx * canvas.width), 0, canvas.width - 1), y = clamp(Math.floor(fy * canvas.height), 0, canvas.height - 1);
+    let d;
+    try { d = canvas.getContext('2d').getImageData(x, y, 1, 1).data; } catch (e) { return null; }
+    if (d[3] < 24) return null; // nothing drawn here
+    const a = d[3] / 255, u = under || [255, 255, 255];
+    return hex(d[0] * a + u[0] * (1 - a), d[1] * a + u[1] * (1 - a), d[2] * a + u[2] * (1 - a));
+  }
+  function setDropper(on) {
+    state.dropper = !!on; state.sampling = false; loupe.hidden = true;
+    $('#dropper').setAttribute('aria-pressed', String(state.dropper));
+    pad.setAttribute('data-pick', String(state.dropper));
+  }
+  function takeColor(c) { setColor(c); setDropper(false); flash('색을 집었어요.'); }
+  $('#dropper').addEventListener('click', () => {
+    const on = !state.dropper;
+    if (on) { closeRgb(); flash('그림에서 가져올 색을 눌러요.'); }
+    setDropper(on);
+  });
+  function sampleAt(e) {
+    const p = padPoint(e);
+    sampled = pixel(pad, p[0], p[1], rgbOf(COL.sticker));
+    loupe.hidden = false;
+    loupe.style.transform = 'translate(' + (p[0] * pad.clientWidth).toFixed(1) + 'px,' + (p[1] * pad.clientHeight).toFixed(1) + 'px)';
+    loupe.style.background = sampled || 'transparent'; loupe.setAttribute('data-empty', String(!sampled));
+  }
+
+  pad.addEventListener('pointerdown', e => {
+    if (state.gear === 'D') return;
+    e.preventDefault();
+    try { pad.setPointerCapture(e.pointerId); } catch (err) { /* not all pointers can be captured */ }
+    if (state.dropper) { state.sampling = true; sampleAt(e); return; }
+    closeRgb(); state.cleared = null;
+    state.stroke = { t: state.pen.tool, c: state.pen.c, w: penWidth(), p: [padPoint(e)] }; paintPad();
+  });
+  pad.addEventListener('pointermove', e => {
+    if (state.sampling) { e.preventDefault(); sampleAt(e); return; }
+    if (!state.stroke || demo.on) return;
+    e.preventDefault();
+    const p = padPoint(e), q = state.stroke.p[state.stroke.p.length - 1];
+    if (Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.004) return; // the hand has barely moved
+    state.stroke.p.push(p); paintPad();
+  });
+  const endStroke = () => {
+    if (state.sampling) {
+      state.sampling = false; loupe.hidden = true;
+      if (sampled) takeColor(sampled); else flash('그림이 있는 곳을 눌러요.');
+      return;
+    }
+    if (!state.stroke || demo.on) return;
+    state.strokes.push(state.stroke); state.stroke = null; paintPad();
+  };
+  pad.addEventListener('pointerup', endStroke); pad.addEventListener('pointercancel', endStroke); pad.addEventListener('pointerleave', endStroke);
+  // Undo takes back the last stroke, or, right after "clear all", brings the whole drawing back.
+  $('#pad-undo').addEventListener('click', () => {
+    if (state.cleared) { state.strokes = state.cleared; state.cleared = null; } else state.strokes.pop();
+    paintPad();
+  });
+  $('#pad-clear').addEventListener('click', () => {
+    if (!state.strokes.length) return;
+    state.cleared = state.strokes; state.strokes = []; paintPad();
+    flash('모두 지웠어요. 되돌리기를 누르면 돌아와요.');
+  });
+  function saveDrawing(asDemo) {
+    if (!state.strokes.length) { flash('먼저 그림판에 그림을 그려 주세요.'); return; }
+    let id;
+    if (asDemo) id = DEMO_ID; else { counter += 1; id = 'd' + counter + '-' + Date.now().toString(36); }
+    const name = $('#draw-name').value.trim() || '내 그림 ' + counter;
+    const d = addDrawing({ id, name, strokes: state.strokes, demo: !!asDemo });
+    state.strokes = []; state.cleared = null; $('#draw-name').value = ''; state.picked = d.id;
+    save(); setTab('assign'); renderAll(); flash('저장했어요. 붙일 곳을 눌러 주세요.');
+  }
+  $('#pad-save').addEventListener('click', () => saveDrawing(false));
+
+  /* ================= voice picker ================= */
+  function renderVoices() {
+    const box = $('#voices'); box.textContent = '';
+    for (const v of VOICES) {
+      const on = v.id === state.voice;
+      box.appendChild(el('button', { type: 'button', class: 'vcard', 'data-voice': v.id, 'aria-pressed': String(on), onclick: () => setVoice(v.id, false) }, [
+        el('span', { class: 'vface' }, [face(v.id)]),
+        el('span', {}, [el('b', {}, [v.name, el('span', { text: v.kind })]), el('small', { text: v.tone })]),
+        el('span', { class: 'trail' }, on ? [icon('check', 18)] : [])
+      ]));
+    }
+    $('#voice-note').textContent = state.sound ? '소리 켜짐' : '소리 꺼짐';
+    sayFace.textContent = ''; sayFace.appendChild(face(state.voice));
+  }
+  // Choosing a character lets it say one sample sentence straight away. Asking to hear a voice turns the sound on.
+  function setVoice(id, quiet) {
+    if (!VOICES.some(v => v.id === id)) return;
+    state.voice = id;
+    if (!quiet && !state.sound) { state.sound = true; renderSound(); }
+    save(); renderVoices();
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* speech is optional */ }
+    const sample = '곧 파란 다리가 나와요.';
+    showBubble(sample, 'voice', 3200); speak(sample);
+  }
+
+  /* ================= the demo: one button, start to arrival ================= */
+  const CHAPTERS = ['그리기', '붙이기', '목소리', '미리 보기', '출발', '길 바뀜', '도착'];
+  const CAPTIONS = [
+    '아이의 태블릿에서 네임펜·사인펜·형광펜·붓으로 소방차를 그리고 이름을 붙여요.',
+    '그린 그림을 지도의 소방서 자리에 붙이고, 공원 무늬도 바꿔요.',
+    '그림 앞에서 알려 줄 캐릭터 목소리를 골라요.',
+    '출발하기 전에 오늘 만날 그림을 차례로 미리 봐요.',
+    '차가 달려도 운전석 화면은 그대로예요. 아이 화면이 그림 앞에서 미리 알려 줘요.',
+    '순정 내비가 길을 바꾸면, 아이 화면이 남은 그림을 다시 세어 먼저 말해 줘요.',
+    '마지막 그림까지 지나 학교에 도착했어요.'
+  ];
+  const cursorEl = $('#cursor');
+  const cur = { x: 0, y: 0 };
+  const STOPPED = { stopped: true };
+  function renderChapters() {
+    const ol = $('#chapters'); ol.textContent = '';
+    CHAPTERS.forEach((name, i) => ol.appendChild(el('li', { 'data-on': String(i === demo.chapter), 'data-done': String(i < demo.chapter || (demo.done && demo.chapter < 0)), 'aria-current': i === demo.chapter ? 'step' : null }, [el('span', { text: name })])));
+    const cap = $('#demo-cap'), live = demo.on && demo.chapter >= 0;
+    cap.setAttribute('data-on', String(live));
+    cap.textContent = live ? CAPTIONS[demo.chapter]
+      : demo.done ? '시연이 끝났어요. 화면을 직접 눌러 보거나 다시 볼 수 있어요.'
+      : demo.taken ? '직접 조작하는 중이에요. 시연 재생을 누르면 처음부터 다시 보여 줘요.'
+      : '시연 재생을 누르면 이 순서대로 보여 줘요. 화면을 직접 눌러 봐도 돼요.';
+  }
+  function renderPlay() {
+    const paused = demo.on && demo.paused;
+    setIcon($('#demo-ic'), demo.on && !paused ? 'pause' : (demo.done ? 'replay' : 'play'), 20);
+    $('#demo-t').textContent = demo.on ? (paused ? '이어서 재생' : '일시정지') : (demo.done ? '다시 보기' : '시연 재생');
+  }
+  function setChapter(i) { demo.chapter = i; renderChapters(); }
+  // Every wait in the demo runs on this clock, so pausing holds it and stopping ends it.
+  function ticker(run, fn) {
+    return new Promise((res, rej) => {
+      let lastT = performance.now();
+      const tick = now => {
+        if (demo.run !== run) { rej(STOPPED); return; }
+        const dt = demo.paused ? 0 : Math.min(now - lastT, 100); lastT = now;
+        if (fn(dt)) res(); else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+  const sleep = ms => { let left = ms; return ticker(demo.run, dt => (left -= dt) <= 0); };
+  const until = test => ticker(demo.run, () => test());
+  function placeCursor(x, y) { cur.x = x; cur.y = y; cursorEl.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)'; }
+  function moveTo(x, y, ms) {
+    if (reduceMotion()) { placeCursor(x, y); return sleep(60); }
+    const x0 = cur.x, y0 = cur.y; let t = 0;
+    return ticker(demo.run, dt => { t += dt / (ms || 440); const e = t >= 1 ? 1 : 1 - Math.pow(1 - t, 3); placeCursor(lerp(x0, x, e), lerp(y0, y, e)); return t >= 1; });
+  }
+  const inUnit = (node, fx, fy) => { const u = unit.getBoundingClientRect(), b = node.getBoundingClientRect(); return [b.left - u.left + b.width * fx, b.top - u.top + b.height * fy]; };
+  // Scroll the panel, never the page, so the control the finger is heading for is on screen.
+  function reveal(node) {
+    const panel = $('#pscroll');
+    if (!panel.contains(node) || panel.scrollHeight <= panel.clientHeight + 1) return;
+    const pb = panel.getBoundingClientRect(), nb = node.getBoundingClientRect();
+    if (nb.top < pb.top + 8) panel.scrollTop += nb.top - pb.top - 8;
+    else if (nb.bottom > pb.bottom - 8) panel.scrollTop += nb.bottom - pb.bottom + 8;
+  }
+  // On a narrow or short window the page follows the finger, so the demo never plays out of sight.
+  function follow(node) {
+    const side = $('#panel'), area = side.contains(node) ? (side.clientHeight <= window.innerHeight - 16 ? side : node) : node;
+    const b = area.getBoundingClientRect(), vh = window.innerHeight;
+    if (b.top >= 0 && b.bottom <= vh) return;
+    try { area.scrollIntoView({ block: b.height > vh - 16 ? 'center' : 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); } catch (e) { /* older engines: stay where we are */ }
+  }
+  // Lights up the remote button that stands for what the car just did.
+  function pulse(btn) { btn.setAttribute('data-flash', 'true'); setTimeout(() => btn.removeAttribute('data-flash'), 1400); }
+  async function press() { cursorEl.setAttribute('data-down', 'true'); await sleep(120); cursorEl.setAttribute('data-down', 'false'); }
+  async function tap(find, act, ms, fx) {
+    const node = find(); if (!node) { act(); return; }
+    reveal(node); follow(node);
+    const [x, y] = inUnit(node, fx === undefined ? 0.5 : fx, 0.5);
+    await moveTo(x, y, ms); await press(); act(); await sleep(240);
+  }
+  async function tapPin(slotKey, act) {
+    draw();
+    const hsp = state.hit.find(h => h.key === slotKey);
+    if (!hsp) { act(); return; }
+    follow(mapCv);
+    const [x0, y0] = inUnit(mapCv, 0, 0);
+    await moveTo(x0 + hsp.x, y0 + hsp.y, 620); await press(); act(); await sleep(260);
+    await moveTo(cur.x + 58, cur.y + 50, 320);
+  }
+  // Draws one stroke with the pen, colour and size now in hand.
+  async function strokeBy(pts, ms) {
+    const P = p => { const [x0, y0] = inUnit(pad, 0, 0); return [x0 + p[0] * pad.clientWidth, y0 + p[1] * pad.clientHeight]; };
+    follow(pad);
+    await moveTo(...P(pts[0]), 300);
+    cursorEl.setAttribute('data-down', 'true');
+    state.stroke = { t: state.pen.tool, c: state.pen.c, w: penWidth(), p: [pts[0]] }; paintPad();
+    let t = 0, i = 1;
+    await ticker(demo.run, dt => {
+      t += dt / ms;
+      const upto = Math.min(pts.length, Math.ceil(t * pts.length));
+      while (i < upto) { state.stroke.p.push(pts[i]); i++; }
+      placeCursor(...P(state.stroke.p[state.stroke.p.length - 1])); paintPad();
+      return i >= pts.length;
+    });
+    state.strokes.push(state.stroke); state.stroke = null; paintPad();
+    cursorEl.setAttribute('data-down', 'false');
+    await sleep(130);
+  }
+  async function typeInto(input, text) {
+    reveal(input); follow(input);
+    const [x, y] = inUnit(input, 0.3, 0.5);
+    await moveTo(x, y, 380); await press();
+    input.value = '';
+    for (const ch of text) { input.value += ch; await sleep(75); }
+    await sleep(160);
+  }
+  // The drawing the demo makes: a red fire engine, a part with each pen, in the wobbly lines of a child's hand.
+  function truckStrokes() {
+    const r = rng(31);
+    const wob = (pts, a) => pts.map(p => [p[0] + (r() - 0.5) * a, p[1] + (r() - 0.5) * a]);
+    return {
+      body: wob(polyPts([[.10, .50], [.72, .50], [.72, .72], [.10, .72], [.10, .50]], 7), 0.014),
+      cab: wob(polyPts([[.72, .38], [.90, .38], [.90, .72], [.72, .72]], 6), 0.014),
+      window: wob(polyPts([[.765, .43], [.86, .43], [.86, .53], [.765, .53], [.765, .43]], 4), 0.012),
+      ladder: wob(polyPts([[.13, .46], [.18, .37], [.24, .43], [.29, .34], [.35, .40], [.40, .31], [.46, .37], [.51, .28], [.57, .34], [.62, .25]], 3), 0.012),
+      light: wob(segPts([.69, .305], [.93, .305], 10), 0.006),
+      wheelA: wob(ringPts(.27, .76, .072, .072, 1.6, 64), 0.004),
+      wheelB: wob(ringPts(.63, .76, .072, .072, 1.6, 64), 0.004)
+    };
+  }
+  function resetStage(tab) {
+    stopPreview(); hush(true);
+    if (state.gear === 'D') setGear('P');
+    if (demo.backup) { assign = demo.backup.assign; state.voice = demo.backup.voice; demo.backup = null; }
+    const i = drawings.findIndex(d => d.id === DEMO_ID);
+    if (i >= 0) { drawings.splice(i, 1); for (const k in assign) if (assign[k] === DEMO_ID) delete assign[k]; }
+    state.dest = 'school';
+    $('#dest-school').setAttribute('aria-pressed', 'true'); $('#dest-grandma').setAttribute('aria-pressed', 'false');
+    state.strokes = []; state.stroke = null; state.cleared = null; state.picked = null; state.confirmDelete = null; state.pop = null; state.speed = SPEED_MANUAL;
+    state.pen.tool = 'name'; state.pen.c = PALETTE[0][0];
+    for (const t of TOOL_ORDER) state.pen.sizes[t] = TOOLS[t].size;
+    $('#draw-name').value = ''; $('#pscroll').scrollTop = 0;
+    setDropper(false); closeRgb(); renderPen();
+    planFromHome(true); setTab(tab); renderAll(); snapCam(); draw();
+  }
+  function endDemo(finished) {
+    demo.taken = demo.on && !finished; // a viewer stopped it part-way and is now using the screen by hand
+    demo.run++; demo.on = false; demo.paused = false; demo.done = !!finished; demo.chapter = -1;
+    cursorEl.hidden = true; cursorEl.setAttribute('data-down', 'false');
+    if (state.stroke) { state.strokes.push(state.stroke); state.stroke = null; paintPad(); }
+    state.speed = SPEED_MANUAL;
+    renderChapters(); renderPlay(); kick();
+  }
+  async function runDemo() {
+    demo.run++; demo.on = true; demo.paused = false; demo.done = false; demo.taken = false;
+    renderPlay();
+    try {
+      resetStage('draw');
+      demo.backup = { assign: Object.assign({}, assign), voice: state.voice };
+      delete assign['lm:fire']; delete assign['bg:park'];
+      renderAll(); draw();
+
+      // Drawing: the name pen for the body, the felt tip for the fine parts, the highlighter for the light, the brush for the wheels.
+      setChapter(0);
+      placeCursor(...inUnit(pad, 0.5, 0.5)); cursorEl.hidden = false;
+      await sleep(600);
+      const S = truckStrokes(), BLUE = '#3F7CC4', YELLOW = '#E2B93B', BLACK = '#2A2A2A';
+      await strokeBy(S.body, 900);
+      await strokeBy(S.cab, 620);
+      await tap(() => $('#pens [data-tool="sign"]'), () => setTool('sign'), 360);
+      await tap(() => $('#swatches [data-c="' + BLUE + '"]'), () => setColor(BLUE), 300);
+      await strokeBy(S.window, 520);
+      await tap(() => $('#swatches [data-c="' + YELLOW + '"]'), () => setColor(YELLOW), 300);
+      await strokeBy(S.ladder, 900);
+      await tap(() => $('#pens [data-tool="hl"]'), () => setTool('hl'), 340);
+      await strokeBy(S.light, 420);
+      await tap(() => $('#pens [data-tool="brush"]'), () => setTool('brush'), 340);
+      await tap(() => $('#swatches [data-c="' + BLACK + '"]'), () => setColor(BLACK), 300);
+      await tap(() => $('#size'), () => setSize(11), 320, (11 - 1) / 29);
+      await strokeBy(S.wheelA, 560);
+      await strokeBy(S.wheelB, 560);
+      await typeInto($('#draw-name'), '빨간 소방차');
+      await tap(() => $('#pad-save'), () => saveDrawing(true), 320);
+
+      setChapter(1);
+      await sleep(700);
+      await tapPin('lm:fire', () => toggleAssign('lm:fire'));
+      await sleep(800);
+      await tap(() => $('#drawer [data-id="ex-tree"]'), () => pickDrawing('ex-tree'), 520);
+      await tap(() => $('#slots-bg [data-slot="bg:park"]'), () => toggleAssign('bg:park'), 520);
+      follow(mapCv);
+      await sleep(1000);
+
+      // Voice: the bear will read the sentences from here on.
+      setChapter(2);
+      await tap(() => $('#tab-voice'), () => { setTab('voice'); renderAll(); }, 480);
+      await sleep(450);
+      await tap(() => $('#voices [data-voice="bori"]'), () => setVoice('bori', true), 440);
+      follow(mapCv);
+      await sleep(1900);
+
+      setChapter(3);
+      await tap(() => $('#tab-preview'), () => { setTab('preview'); renderAll(); }, 480);
+      await sleep(500);
+      await tap(() => $('#preview-play'), playPreview, 360);
+      follow(mapCv);
+      await sleep(journeyItems().length * 900 + 200);
+      stopPreview();
+      await sleep(300);
+
+      // From here the car does the acting: it shifts to D, meets a closed road, and arrives.
+      setChapter(4);
+      cursorEl.hidden = true;
+      follow(mapCv);
+      await sleep(500);
+      state.speed = SPEED_DEMO; setGear('D');
+      await until(() => state.arrived || state.passed.has('fire'));
+      await sleep(250);
+      if (!state.arrived) {
+        setChapter(5); pulse($('#btn-block')); reroute('next');
+        state.speed = SPEED_DEMO * 0.36; // the car slows at the closed road while the new way is explained
+        await sleep(3000);
+        state.speed = SPEED_DEMO;
+      }
+      await until(() => state.arrived);
+      setChapter(6);
+      await until(() => state.gear === 'P');
+      await sleep(500);
+      endDemo(true);
+    } catch (e) {
+      if (e !== STOPPED) { endDemo(false); throw e; }
+    }
+  }
+  // A real tap, a key, or a finger on the drawing pad takes over from the demo at once. Scrolling past does not.
+  const takeOver = () => { if (demo.on) endDemo(false); };
+  unit.addEventListener('click', takeOver, true);
+  unit.addEventListener('keydown', takeOver, true);
+  unit.addEventListener('pointerdown', e => { if (e.target === pad) takeOver(); }, true);
+  $('#demo-play').addEventListener('click', () => {
+    if (!demo.on) { runDemo(); return; }
+    demo.paused = !demo.paused; renderPlay();
+  });
+
+  /* ================= wiring ================= */
+  for (const n of TABS) $('#tab-' + n).addEventListener('click', () => { setTab(n); renderAll(); });
+  $('#preview-play').addEventListener('click', playPreview);
+  $('#dest-school').addEventListener('click', () => setDest('school'));
+  $('#dest-grandma').addEventListener('click', () => setDest('grandma'));
+  $('#btn-go').addEventListener('click', () => { takeOver(); setGear(state.gear === 'D' ? 'P' : 'D'); });
+  $('#btn-block').addEventListener('click', () => { takeOver(); reroute(); });
+  $('#ask-where').addEventListener('click', () => {
+    if (state.gear !== 'D') return;
+    log('아이 화면에서 물어봄', '"지금 어디야?"');
+    say(sumText());
+  });
+  $('#btn-night').addEventListener('click', () => { const now = unit.getAttribute('data-mode') === 'night'; state.nightOverride = !now; applyMode(); });
+  function renderSound() {
+    const b = $('#btn-sound');
+    b.setAttribute('aria-pressed', String(state.sound)); b.setAttribute('aria-label', state.sound ? '소리 끄기' : '소리 켜기');
+    setIcon(b, state.sound ? 'sound' : 'mute');
+    $('#voice-note').textContent = state.sound ? '소리 켜짐' : '소리 꺼짐';
+  }
+  $('#btn-sound').addEventListener('click', () => {
+    state.sound = !state.sound; renderSound();
+    if (!state.sound) { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* ignore */ } }
+  });
+  $('#btn-reset').addEventListener('click', () => { endDemo(false); demo.done = false; demo.taken = false; resetStage('assign'); renderChapters(); renderPlay(); });
+  mapCv.addEventListener('click', e => {
+    if (state.gear === 'D') return;
+    const b = mapCv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = null, bd = Infinity;
+    for (const hsp of state.hit) { const d = Math.hypot(hsp.x - x, hsp.y - y); if (d <= hsp.r + 6 && d < bd) { bd = d; best = hsp; } }
+    if (best) toggleAssign(best.key);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeRgb(); setDropper(false); } });
+  $('#btn-win').addEventListener('click', () => {
+    const half = unit.getAttribute('data-win') !== 'half';
+    unit.setAttribute('data-win', half ? 'half' : 'full'); $('#kid-name').textContent = half ? '아이의 휴대폰' : '아이의 태블릿';
+    $('#btn-win').setAttribute('aria-pressed', String(half));
+  });
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (state.gear !== 'D') snapCam(); paintPad(); renderPen(); if (!raf) draw(); }).observe($('#stage'));
+  let resizeTimer = 0;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (state.gear !== 'D') snapCam(); paintPad(); if (!raf) draw(); }, 80); });
+
+  /* ================= start ================= */
+  readColors();
+  planFromHome(false);
+  applyMode();
+  snapCam();
+  setTab('assign');
+  renderPen();
+  renderSound(); renderChapters(); renderPlay(); setPreviewBtn(false);
+  renderAll();
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { readColors(); if (!raf) draw(); });
+})();
+</script>
+</body>
+</html>
